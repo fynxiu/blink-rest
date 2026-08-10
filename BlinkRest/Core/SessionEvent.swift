@@ -15,6 +15,7 @@ enum SessionEvent: Equatable, Sendable {
     case systemDidWake
     case screensDidWake
     case sessionDidBecomeActive
+    case activeSpaceDidChange
     case suspensionResumeDebounceElapsed
     case displaysChanged
 }

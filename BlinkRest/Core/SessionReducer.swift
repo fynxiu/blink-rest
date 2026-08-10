@@ -54,6 +54,19 @@ enum SessionReducer {
             return endSuspension(state: state, reason: .screenSleep)
         case .sessionDidBecomeActive:
             return endSuspension(state: state, reason: .inactiveSession)
+        case .activeSpaceDidChange:
+            switch state {
+            case let .warning(breakStartsAt):
+                let remaining = context.monotonicNow.duration(to: breakStartsAt)
+                return SessionTransition(
+                    state: state,
+                    effects: [.showWarning(secondsRemaining: displayedSeconds(remaining))]
+                )
+            case .breaking:
+                return SessionTransition(state: state, effects: [.reconcileOverlays])
+            case .running, .paused, .suspended:
+                return SessionTransition(state: state)
+            }
         case .suspensionResumeDebounceElapsed:
             return resumeAfterSuspension(state: state, context: context)
         case .workIntervalChanged:

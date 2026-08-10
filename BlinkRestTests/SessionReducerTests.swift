@@ -366,6 +366,33 @@ final class SessionReducerTests: XCTestCase {
         )
     }
 
+    func testActiveSpaceChangeReassertsWarningAndBreakPresentation() {
+        let warning = reduce(
+            .warning(breakStartsAt: MonotonicInstant(seconds: 105)),
+            .activeSpaceDidChange,
+            monotonic: 102
+        )
+        XCTAssertEqual(warning.effects, [.showWarning(secondsRemaining: 3)])
+
+        let breaking = SessionState.breaking(
+            startedAt: MonotonicInstant(seconds: 100),
+            endsAt: MonotonicInstant(seconds: 120),
+            durationSnapshot: 20
+        )
+        XCTAssertEqual(
+            reduce(breaking, .activeSpaceDidChange, monotonic: 105).effects,
+            [.reconcileOverlays]
+        )
+
+        XCTAssertTrue(
+            reduce(
+                .running(deadline: MonotonicInstant(seconds: 200)),
+                .activeSpaceDidChange,
+                monotonic: 105
+            ).effects.isEmpty
+        )
+    }
+
     func testWallClockChangesDoNotMoveMonotonicWorkDeadline() {
         let state = SessionState.running(deadline: MonotonicInstant(seconds: 100))
         let transition = reduce(

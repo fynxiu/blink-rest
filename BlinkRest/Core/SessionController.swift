@@ -219,7 +219,13 @@ final class SessionController: ObservableObject {
         let previousState = state
         state = transition.state
         if state != previousState {
-            logger.debug("Session state changed to \(self.state.logName, privacy: .public)")
+            logger.debug(
+                "Session state \(previousState.logName, privacy: .public) -> \(self.state.logName, privacy: .public) via \(String(describing: event), privacy: .public)"
+            )
+        } else if event == .activeSpaceDidChange || event == .displaysChanged {
+            logger.debug(
+                "Session topology event \(String(describing: event), privacy: .public) while \(self.state.logName, privacy: .public)"
+            )
         }
         perform(transition.effects)
         updateTickSchedule()

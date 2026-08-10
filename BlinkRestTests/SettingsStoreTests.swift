@@ -217,6 +217,7 @@ final class SettingsStoreTests: XCTestCase {
         workspaceCenter.post(name: NSWorkspace.didWakeNotification, object: nil)
         workspaceCenter.post(name: NSWorkspace.screensDidWakeNotification, object: nil)
         workspaceCenter.post(name: NSWorkspace.sessionDidBecomeActiveNotification, object: nil)
+        workspaceCenter.post(name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
         applicationCenter.post(
             name: NSApplication.didChangeScreenParametersNotification,
             object: nil
@@ -231,6 +232,7 @@ final class SettingsStoreTests: XCTestCase {
                 .systemDidWake,
                 .screensDidWake,
                 .sessionDidBecomeActive,
+                .activeSpaceDidChange,
                 .displaysChanged,
             ]
         )

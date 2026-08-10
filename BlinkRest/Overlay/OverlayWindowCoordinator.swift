@@ -85,6 +85,7 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
 
     func present(session: BreakSession) {
         if isPresented, activeSession == session {
+            logger.debug("Overlay presentation refreshed for existing break session")
             reconcileScreens()
             return
         }
@@ -94,6 +95,7 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
         presentationModel.update(session: session, at: session.startedAt)
         isPresented = true
 
+        logger.debug("Overlay presentation started")
         reconcileScreens()
         NSApp.activate()
 
@@ -122,6 +124,7 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
         isPresented = false
         activeSession = nil
         escapeHoldController.deactivate()
+        logger.debug("Overlay presentation dismissed")
         windows.values.forEach { $0.dismiss() }
     }
 
@@ -158,7 +161,11 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
         }
 
         managedDisplayIDs = Set(windows.keys)
-        logger.debug("Overlay display set reconciled: \(displayIDs.count, privacy: .public) display(s)")
+        let visibleCount = windows.values.filter { $0.isVisible }.count
+        let keyCount = windows.values.filter { $0.isKeyWindow }.count
+        logger.debug(
+            "Overlay reconciled: \(displayIDs.count, privacy: .public) display(s), \(visibleCount, privacy: .public) visible window(s), \(keyCount, privacy: .public) key window(s), appActive=\(NSApp.isActive, privacy: .public)"
+        )
     }
 
     func cancelEscapeHold() {

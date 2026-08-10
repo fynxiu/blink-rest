@@ -9,6 +9,7 @@ enum WorkspaceLifecycleEvent: Equatable, Sendable {
     case screensDidWake
     case sessionDidResignActive
     case sessionDidBecomeActive
+    case activeSpaceDidChange
     case displaysChanged
 
     var sessionEvent: SessionEvent {
@@ -25,6 +26,8 @@ enum WorkspaceLifecycleEvent: Equatable, Sendable {
             .sessionDidResignActive
         case .sessionDidBecomeActive:
             .sessionDidBecomeActive
+        case .activeSpaceDidChange:
+            .activeSpaceDidChange
         case .displaysChanged:
             .displaysChanged
         }
@@ -99,6 +102,11 @@ final class WorkspaceLifecycleObserver {
             center: workspaceNotificationCenter,
             name: NSWorkspace.sessionDidBecomeActiveNotification,
             event: .sessionDidBecomeActive
+        )
+        observe(
+            center: workspaceNotificationCenter,
+            name: NSWorkspace.activeSpaceDidChangeNotification,
+            event: .activeSpaceDidChange
         )
         observe(
             center: applicationNotificationCenter,
