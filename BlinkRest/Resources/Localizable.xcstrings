@@ -1,0 +1,258 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "app.name" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Blink Rest" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Blink Rest" } }
+      }
+    },
+    "menu.active" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Active" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "运行中" } }
+      }
+    },
+    "menu.paused" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Paused" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "已暂停" } }
+      }
+    },
+    "menu.breaking" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Resting" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "休息中" } }
+      }
+    },
+    "menu.untilNextBreak" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "until next break" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "距离下次休息" } }
+      }
+    },
+    "menu.untilResume" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "until resume" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "距离恢复" } }
+      }
+    },
+    "menu.breakIn" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Break in" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "即将休息" } }
+      }
+    },
+    "menu.takeBreakNow" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Take a break now" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "立即休息" } }
+      }
+    },
+    "menu.pause" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Pause" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "暂停" } }
+      }
+    },
+    "menu.pause30" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Pause for 30 minutes" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "暂停 30 分钟" } }
+      }
+    },
+    "menu.pause60" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Pause for 1 hour" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "暂停 1 小时" } }
+      }
+    },
+    "menu.resume" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Resume" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "恢复" } }
+      }
+    },
+    "menu.settings" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Settings" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "设置" } }
+      }
+    },
+    "menu.quit" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Quit" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "退出" } }
+      }
+    },
+    "warning.eyeBreakIn.format" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Eye break in %lld" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%lld 秒后休息" } }
+      }
+    },
+    "break.lookFar.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Look at a real distant object" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "看向真实的远处物体" } }
+      }
+    },
+    "break.lookFar.detail" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Let your focus settle away from the screen." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "让视线离开屏幕，落在远处。" } }
+      }
+    },
+    "break.blink.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Blink slowly and fully" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "缓慢、完整地眨眼" } }
+      }
+    },
+    "break.blink.detail" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "5 slow blinks" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "缓慢眨眼 5 次" } }
+      }
+    },
+    "break.closeEyes.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Close your eyes" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "闭上眼睛" } }
+      }
+    },
+    "break.closeEyes.detail" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The screen will clear when the break is over." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "休息结束后，屏幕会自动恢复。" } }
+      }
+    },
+    "break.skip.hint" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Hold Esc or hold the button to skip" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "按住 Esc 或按住按钮跳过" } }
+      }
+    },
+    "break.skip.button" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Hold to skip" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "按住跳过" } }
+      }
+    },
+    "break.remaining.format" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld seconds remaining" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "还剩 %lld 秒" } }
+      }
+    },
+    "break.skip.accessibilityHint" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Activate to skip this break immediately." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "激活后立即跳过本次休息。" } }
+      }
+    },
+    "menu.accessibility.running" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Blink Rest, %@ until the next break" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Blink Rest，距离下次休息还有 %@" } }
+      }
+    },
+    "menu.accessibility.warning" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Blink Rest, break in %lld seconds" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Blink Rest，%lld 秒后休息" } }
+      }
+    },
+    "menu.accessibility.paused" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Blink Rest paused, %@ until resume" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Blink Rest 已暂停，%@ 后恢复" } }
+      }
+    },
+    "menu.accessibility.breaking" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Blink Rest, break in progress" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Blink Rest，正在休息" } }
+      }
+    },
+    "settings.schedule" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Schedule" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "时间安排" } }
+      }
+    },
+    "settings.workInterval" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Work interval" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "工作间隔" } }
+      }
+    },
+    "settings.breakDuration" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Break duration" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "休息时长" } }
+      }
+    },
+    "settings.minutes.format" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld min" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%lld 分钟" } }
+      }
+    },
+    "settings.seconds.format" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld sec" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "%lld 秒" } }
+      }
+    },
+    "settings.schedule.footer" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Changing the work interval restarts the current cycle. A new break duration applies to the next break." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "修改工作间隔会重新开始当前周期；新的休息时长将在下次休息时生效。" } }
+      }
+    },
+    "settings.system" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "System" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "系统" } }
+      }
+    },
+    "settings.launchAtLogin" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Launch at login" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "登录时启动" } }
+      }
+    },
+    "settings.login.requiresApproval" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Approval is required in System Settings before Blink Rest can launch at login." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "需要先在“系统设置”中批准 Blink Rest，才能在登录时启动。" } }
+      }
+    },
+    "settings.login.open" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Open Login Items Settings" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "打开登录项设置" } }
+      }
+    },
+    "settings.login.error" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The login item could not be updated." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "无法更新登录项。" } }
+      }
+    },
+    "settings.privacy" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No analytics. No account. Blink Rest does not transmit your data." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "无分析、无账户，Blink Rest 不会传输你的数据。" } }
+      }
+    },
+    "settings.version.format" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Version %@" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "版本 %@" } }
+      }
+    }
+  },
+  "version" : "1.0"
+}
