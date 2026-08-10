@@ -12,7 +12,7 @@ articles, and medical promises. Each state presents one primary action.
   Settings, and Quit.
 - A nonactivating warning appears five seconds before a scheduled break.
 - One opaque AppKit window per display covers the full screen during a break.
-- The 10, 20, and 30-second plans use three phases: look at a real distant
+- Break plans use three phases: look at a real distant
   object, blink slowly and fully, and close the eyes.
 - The final phase states that the display will clear automatically, so the user
   does not need to look back to determine when the break is over.

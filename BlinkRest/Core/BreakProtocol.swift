@@ -48,12 +48,13 @@ enum BreakProtocol {
         switch totalDuration {
         case 10:
             durations = [2, 5, 3]
-        case 30:
-            durations = [3, 12, 15]
         case 20:
             durations = [3, 9, 8]
+        case 30, 45, 60, 90:
+            let scale = totalDuration / 30
+            durations = [3 * scale, 12 * scale, 15 * scale]
         default:
-            durations = [3, 9, 8]
+            durations = [3, 12, 15]
         }
 
         let stages = BreakStage.allCases

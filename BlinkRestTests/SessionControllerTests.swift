@@ -33,15 +33,15 @@ final class SessionControllerTests: XCTestCase {
             return XCTFail("Expected an overlay session")
         }
         XCTAssertEqual(session.startedAt, MonotonicInstant(seconds: 1_205))
-        XCTAssertEqual(session.endsAt, MonotonicInstant(seconds: 1_225))
+        XCTAssertEqual(session.endsAt, MonotonicInstant(seconds: 1_235))
         XCTAssertEqual(harness.frontmost.captureCount, 1)
         XCTAssertEqual(harness.scheduler.tickScheduleCount, 2)
 
-        harness.time.monotonicNow = MonotonicInstant(seconds: 1_225)
+        harness.time.monotonicNow = MonotonicInstant(seconds: 1_235)
         harness.scheduler.fireTick()
         XCTAssertEqual(
             harness.controller.state,
-            .running(deadline: MonotonicInstant(seconds: 2_425))
+            .running(deadline: MonotonicInstant(seconds: 2_435))
         )
         XCTAssertEqual(harness.overlay.dismissCount, 1)
         XCTAssertEqual(harness.overlay.cancelHoldCount, 1)
@@ -53,7 +53,7 @@ final class SessionControllerTests: XCTestCase {
         let harness = makeHarness(monotonic: 100)
 
         harness.controller.takeBreakNow()
-        XCTAssertEqual(harness.overlay.presentedSession?.durationSnapshot, 20)
+        XCTAssertEqual(harness.overlay.presentedSession?.durationSnapshot, 30)
 
         harness.time.monotonicNow = MonotonicInstant(seconds: 105)
         harness.scheduler.fireTick()

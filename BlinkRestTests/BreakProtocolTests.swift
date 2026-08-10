@@ -6,11 +6,14 @@ final class BreakProtocolTests: XCTestCase {
         assertPlan(total: 10, durations: [2, 5, 3])
         assertPlan(total: 20, durations: [3, 9, 8])
         assertPlan(total: 30, durations: [3, 12, 15])
+        assertPlan(total: 45, durations: [4.5, 18, 22.5])
+        assertPlan(total: 60, durations: [6, 24, 30])
+        assertPlan(total: 90, durations: [9, 36, 45])
     }
 
-    func testUnsupportedDurationFallsBackToTwentySecondPlan() {
+    func testUnsupportedDurationFallsBackToThirtySecondPlan() {
         let fallback = BreakProtocol.plan(totalDuration: 7)
-        let standard = BreakProtocol.plan(totalDuration: 20)
+        let standard = BreakProtocol.plan(totalDuration: 30)
 
         XCTAssertEqual(fallback, standard)
         XCTAssertEqual(BreakProtocol.plan(totalDuration: .nan), standard)

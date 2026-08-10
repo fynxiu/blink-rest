@@ -10,7 +10,7 @@ final class SettingsStoreTests: XCTestCase {
             let store = SettingsStore(defaults: defaults)
 
             XCTAssertEqual(store.workIntervalSeconds, 20 * 60)
-            XCTAssertEqual(store.breakDurationSeconds, 20)
+            XCTAssertEqual(store.breakDurationSeconds, 30)
             XCTAssertEqual(
                 defaults.integer(forKey: SettingsStore.Keys.schemaVersion),
                 AppSettings.schemaVersion
@@ -28,14 +28,19 @@ final class SettingsStoreTests: XCTestCase {
 
     func testAllowedStoredValuesAreRestored() {
         withDefaults { defaults in
-            defaults.set(45 * 60, forKey: SettingsStore.Keys.workIntervalSeconds)
-            defaults.set(30, forKey: SettingsStore.Keys.breakDurationSeconds)
+            defaults.set(25 * 60, forKey: SettingsStore.Keys.workIntervalSeconds)
+            defaults.set(90, forKey: SettingsStore.Keys.breakDurationSeconds)
 
             let store = SettingsStore(defaults: defaults)
 
-            XCTAssertEqual(store.workIntervalSeconds, 45 * 60)
-            XCTAssertEqual(store.breakDurationSeconds, 30)
+            XCTAssertEqual(store.workIntervalSeconds, 25 * 60)
+            XCTAssertEqual(store.breakDurationSeconds, 90)
         }
+    }
+
+    func testSelectableSchedulePresetsMatchProductConfiguration() {
+        XCTAssertEqual(AppSettings.allowedWorkIntervalSeconds, [20, 25, 30, 40].map { $0 * 60 })
+        XCTAssertEqual(AppSettings.allowedBreakDurationSeconds, [30, 45, 60, 90])
     }
 
     func testInvalidStoredValuesFallBackWithoutNSNumberCoercion() {
@@ -76,15 +81,15 @@ final class SettingsStoreTests: XCTestCase {
             store.onWorkIntervalChange = { workChanges.append($0) }
             store.onBreakDurationChange = { breakChanges.append($0) }
 
-            store.setWorkIntervalSeconds(30 * 60)
+            store.setWorkIntervalSeconds(25 * 60)
 
-            XCTAssertEqual(workChanges, [30 * 60])
+            XCTAssertEqual(workChanges, [25 * 60])
             XCTAssertTrue(breakChanges.isEmpty)
 
-            store.setBreakDurationSeconds(30)
+            store.setBreakDurationSeconds(45)
 
-            XCTAssertEqual(workChanges, [30 * 60])
-            XCTAssertEqual(breakChanges, [30])
+            XCTAssertEqual(workChanges, [25 * 60])
+            XCTAssertEqual(breakChanges, [45])
         }
     }
 
@@ -105,8 +110,8 @@ final class SettingsStoreTests: XCTestCase {
     func testInvalidSetterInputIsCanonicalized() {
         withDefaults { defaults in
             let store = SettingsStore(defaults: defaults)
-            store.setWorkIntervalSeconds(30 * 60)
-            store.setBreakDurationSeconds(30)
+            store.setWorkIntervalSeconds(25 * 60)
+            store.setBreakDurationSeconds(45)
 
             store.setWorkIntervalSeconds(1)
             store.setBreakDurationSeconds(.nan)

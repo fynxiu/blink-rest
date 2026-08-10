@@ -3,7 +3,7 @@ import Foundation
 struct SessionSchedule: Equatable, Sendable {
     static let standard = SessionSchedule(
         workInterval: 20 * 60,
-        breakDuration: 20,
+        breakDuration: 30,
         warningDuration: 5
     )
 

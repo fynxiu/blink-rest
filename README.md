@@ -2,7 +2,7 @@
 
 Blink Rest is a small native macOS menu bar app that periodically covers every
 connected display with a quiet eye-break prompt. The default schedule is a
-20-second break after 20 minutes of active-session time.
+30-second break after 20 minutes of active-session time.
 
 The app has no account, analytics, network client, or third-party dependencies.
 It does not inspect screen contents or request Accessibility, Input Monitoring,
@@ -50,7 +50,7 @@ to install and launch it in one step, or `make uninstall` to remove it.
 - VoiceOver, Voice Control, Switch Control, and Full Keyboard Access users can
   activate the skip control immediately.
 
-Settings offer four work intervals, three break durations, and Launch at Login.
+Settings offer four work intervals, four break durations, and Launch at Login.
 Changing the work interval restarts the current work cycle. Changing the break
 duration affects the next break without postponing it.
 
