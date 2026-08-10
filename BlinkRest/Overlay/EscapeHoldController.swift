@@ -59,21 +59,7 @@ struct AppKitEscapeLocalEventMonitor: EscapeLocalEventMonitoring {
     func install(
         handler: @escaping @MainActor (NSEvent) -> Bool
     ) -> Any? {
-        NSEvent.addLocalMonitorForEvents(
-            matching: [
-                .keyDown,
-                .keyUp,
-                .scrollWheel,
-                .beginGesture,
-                .endGesture,
-                .magnify,
-                .swipe,
-                .rotate,
-                .gesture,
-                .smartMagnify,
-                .pressure,
-            ]
-        ) { event in
+        NSEvent.addLocalMonitorForEvents(matching: [.keyDown, .keyUp]) { event in
             let eventBox = UncheckedEvent(event)
             let shouldConsume = MainActor.assumeIsolated {
                 handler(eventBox.value)
@@ -142,10 +128,6 @@ final class EscapeHoldController: NSObject, ObservableObject {
         isActive = true
 
         eventMonitorToken = eventMonitoring.install { [weak self] event in
-            if Self.blocksTrackpadGesture(event.type) {
-                return true
-            }
-
             guard event.keyCode == Self.escapeKeyCode else { return false }
 
             switch event.type {
@@ -172,23 +154,6 @@ final class EscapeHoldController: NSObject, ObservableObject {
             name: NSWindow.didResignKeyNotification,
             object: nil
         )
-    }
-
-    nonisolated static func blocksTrackpadGesture(_ type: NSEvent.EventType) -> Bool {
-        switch type {
-        case .scrollWheel,
-             .beginGesture,
-             .endGesture,
-             .magnify,
-             .swipe,
-             .rotate,
-             .gesture,
-             .smartMagnify,
-             .pressure:
-            true
-        default:
-            false
-        }
     }
 
     func deactivate() {
