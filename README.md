@@ -8,12 +8,29 @@ The app has no account, analytics, network client, or third-party dependencies.
 It does not inspect screen contents or request Accessibility, Input Monitoring,
 Screen Recording, camera, or microphone permission.
 
+## Install and open
+
+For normal users, see the **[Blink Rest User Guide](docs/USER_GUIDE.md)**.
+
+The short version:
+
+1. Download the correct ZIP from the [latest release](https://github.com/fynxiu/blink-rest/releases/latest):
+   use `macos-arm64` for Apple silicon or `macos-x86_64` for an Intel Mac.
+2. Extract `BlinkRest.app` and move it to `/Applications`.
+3. Open Finder > **Applications** > **Blink Rest**, or launch it with Spotlight.
+4. Blink Rest has no normal Dock icon or main window. After launch, look for
+   the **eye icon in the macOS menu bar** and click it.
+
+Seeing `/Applications/BlinkRest.app` confirms that the app is installed. If the
+menu bar is crowded and the eye is hidden, make room by closing other menu bar
+utilities; when visible, Command-drag the Blink Rest icon farther to the right.
+
 ## Requirements
 
 - macOS 14 or later
 - Xcode 26 or another Xcode release capable of building for macOS 14
 
-## Build and test
+## Build and test from source
 
 ```bash
 xcodebuild -project BlinkRest.xcodeproj -scheme BlinkRest \
@@ -63,4 +80,5 @@ display. Its schedule is a configurable reminder, not a medical treatment or
 efficacy claim.
 
 See [acceptance](docs/ACCEPTANCE.md), [architecture](docs/ARCHITECTURE.md),
-[design](docs/DESIGN.md), and [privacy](docs/PRIVACY.md) for details.
+[design](docs/DESIGN.md), [privacy](docs/PRIVACY.md), and the
+[user guide](docs/USER_GUIDE.md) for details.
