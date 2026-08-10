@@ -31,6 +31,16 @@ xcodebuild -project BlinkRest.xcodeproj -scheme BlinkRest \
 Open `BlinkRest.xcodeproj` in Xcode to run the app with normal local signing.
 A signed, stably installed app bundle is required to validate Launch at Login.
 
+For a local command-line install into `/Applications`:
+
+```bash
+make install
+```
+
+This builds a Release app, applies an ad-hoc local signature, stops any running
+BlinkRest instance, and replaces `/Applications/BlinkRest.app`. Use `make run`
+to install and launch it in one step, or `make uninstall` to remove it.
+
 ## Usage
 
 - Select the eye icon in the menu bar to see the next break.
