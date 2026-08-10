@@ -4,6 +4,43 @@ import XCTest
 
 @MainActor
 final class EscapeHoldControllerTests: XCTestCase {
+    func testBreakBlocksTrackpadGesturesButNotPointerEvents() {
+        let blocked: [NSEvent.EventType] = [
+            .scrollWheel,
+            .beginGesture,
+            .endGesture,
+            .magnify,
+            .swipe,
+            .rotate,
+            .gesture,
+            .smartMagnify,
+            .pressure,
+        ]
+
+        for type in blocked {
+            XCTAssertTrue(
+                EscapeHoldController.blocksTrackpadGesture(type),
+                "Expected \(type) to be blocked during a break"
+            )
+        }
+
+        let allowed: [NSEvent.EventType] = [
+            .mouseMoved,
+            .leftMouseDown,
+            .leftMouseDragged,
+            .leftMouseUp,
+            .rightMouseDown,
+            .rightMouseUp,
+        ]
+
+        for type in allowed {
+            XCTAssertFalse(
+                EscapeHoldController.blocksTrackpadGesture(type),
+                "Expected \(type) to remain available during a break"
+            )
+        }
+    }
+
     func testShortPressCancelsWithoutCompleting() {
         let harness = makeHarness()
         var completionCount = 0
