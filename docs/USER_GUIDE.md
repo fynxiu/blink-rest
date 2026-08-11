@@ -12,8 +12,9 @@ bar.
 Open the [latest Blink Rest release](https://github.com/fynxiu/blink-rest/releases/latest)
 and download the ZIP file for your Mac:
 
-- Apple silicon Macs (M1, M2, M3, M4, and later): `BlinkRest-v1.0.0-macos-arm64.zip`
-- Intel Macs: `BlinkRest-v1.0.0-macos-x86_64.zip`
+- Apple silicon Macs (M1, M2, M3, M4, and later): download the asset ending in
+  `-macos-arm64.zip`.
+- Intel Macs: download the asset ending in `-macos-x86_64.zip`.
 
 If you are unsure which Mac you have, choose Apple menu > **About This Mac**.
 A Mac showing an Apple M-series chip uses the arm64 build. A Mac showing an

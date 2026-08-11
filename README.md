@@ -58,6 +58,27 @@ This builds a Release app, applies an ad-hoc local signature, stops any running
 BlinkRest instance, and replaces `/Applications/BlinkRest.app`. Use `make run`
 to install and launch it in one step, or `make uninstall` to remove it.
 
+## Publishing
+
+Publishing is scripted so a normal release does not require an LLM-driven
+sequence of Git and GitHub commands. Start with a dry run:
+
+```bash
+make publish-dry-run VERSION=1.1.0
+```
+
+Then publish the same version from a clean `main` branch:
+
+```bash
+make publish VERSION=1.1.0
+```
+
+The publish script validates the repository, runs the unit tests, builds and
+verifies separate arm64 and x86_64 Release apps, creates ZIPs and SHA-256
+checksums, pushes `main`, creates and pushes the annotated version tag, and
+creates the GitHub release with generated notes. The requested version is
+stamped into the release builds without rewriting the Xcode project file.
+
 ## Usage
 
 - Select the eye icon in the menu bar to see the next break.
