@@ -18,6 +18,13 @@ protocol BreakWindowManaging: AnyObject {
 @MainActor
 final class BreakWindow: NSWindow, BreakWindowManaging {
     let displayID: UInt32
+    static let requiredCollectionBehavior: NSWindow.CollectionBehavior = [
+        .canJoinAllSpaces,
+        .canJoinAllApplications,
+        .fullScreenAuxiliary,
+        .stationary,
+        .ignoresCycle,
+    ]
 
     private var visibilityGeneration = 0
 
@@ -31,12 +38,7 @@ final class BreakWindow: NSWindow, BreakWindowManaging {
         )
 
         level = .screenSaver
-        collectionBehavior = [
-            .canJoinAllSpaces,
-            .fullScreenAuxiliary,
-            .stationary,
-            .ignoresCycle
-        ]
+        collectionBehavior = Self.requiredCollectionBehavior
         isOpaque = true
         hasShadow = false
         backgroundColor = DesignTokens.overlayBackgroundColor

@@ -5,6 +5,32 @@ import XCTest
 
 @MainActor
 final class OverlayWindowCoordinatorTests: XCTestCase {
+    func testBreakWindowPolicyCoversSpacesFullScreenAndStageManager() {
+        let behavior = BreakWindow.requiredCollectionBehavior
+
+        XCTAssertTrue(behavior.contains(.canJoinAllSpaces))
+        XCTAssertTrue(behavior.contains(.canJoinAllApplications))
+        XCTAssertTrue(behavior.contains(.fullScreenAuxiliary))
+        XCTAssertTrue(behavior.contains(.stationary))
+        XCTAssertTrue(behavior.contains(.ignoresCycle))
+        XCTAssertFalse(behavior.contains(.moveToActiveSpace))
+        XCTAssertFalse(behavior.contains(.primary))
+        XCTAssertFalse(behavior.contains(.auxiliary))
+    }
+
+    func testReconcileReordersExistingWindowAfterSpaceChange() throws {
+        let harness = makeHarness(displays: [
+            OverlayDisplay(id: 1, frame: NSRect(x: 0, y: 0, width: 1280, height: 800))
+        ])
+        harness.coordinator.present(session: breakSession)
+        let window = try XCTUnwrap(harness.factory.windows[1])
+        let previousPresentCount = window.presentCount
+
+        harness.coordinator.reconcileScreens()
+
+        XCTAssertEqual(window.presentCount, previousPresentCount + 1)
+    }
+
     func testPresentAndRepeatedPresentReuseOneWindowPerDisplay() {
         let harness = makeHarness(displays: [
             OverlayDisplay(id: 1, frame: NSRect(x: 0, y: 0, width: 1280, height: 800)),
@@ -137,6 +163,7 @@ private final class FakeBreakWindow: BreakWindowManaging {
     private(set) var frame: NSRect
     private(set) var isVisible = false
     private(set) var isKeyWindow = false
+    private(set) var presentCount = 0
     private(set) var dismissCount = 0
     private(set) var closeCount = 0
 
@@ -150,8 +177,11 @@ private final class FakeBreakWindow: BreakWindowManaging {
     }
 
     func present(makeKey: Bool) {
+        presentCount += 1
         isVisible = true
-        isKeyWindow = makeKey
+        if makeKey {
+            isKeyWindow = true
+        }
     }
 
     func dismiss() {

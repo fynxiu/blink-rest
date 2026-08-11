@@ -29,6 +29,16 @@ not view concerns.
 and reconciliation are idempotent. `FrontmostApplicationManager` captures the
 last non-Blink-Rest app and restores it only as a best effort.
 
+Each break window is a screen-saver-level system overlay with
+`canJoinAllSpaces`, `canJoinAllApplications`, `fullScreenAuxiliary`,
+`stationary`, and `ignoresCycle` collection behavior. This lets AppKit carry the
+overlay across ordinary Spaces, other applications' full-screen spaces, Mission
+Control, and Stage Manager. An `activeSpaceDidChangeNotification` triggers an
+idempotent reorder as a recovery path. Blink Rest deliberately does not consume
+trackpad or system gestures: local event monitors cannot control events routed
+to other applications or WindowServer, and broader interception would conflict
+with the no-Input-Monitoring and no-Accessibility-permission contract.
+
 ## Testability
 
 System boundaries are protocols: time source, scheduler, settings persistence,

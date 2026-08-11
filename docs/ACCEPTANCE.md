@@ -50,6 +50,11 @@ was unavailable in the final environment, so no interactive item is checked.
 - [ ] Dual-display extended desktop
 - [ ] Another application in a full-screen Space
 - [ ] Multiple Spaces
+- [ ] During a break, use trackpad gestures to enter Mission Control and move
+      between Spaces. The system gesture remains available, while every
+      destination Space, full-screen application, and Stage Manager set stays
+      covered and the break controls remain usable. No Input Monitoring or
+      Accessibility prompt appears.
 - [ ] Stage Manager on and off
 - [ ] Attach and detach a display during a break
 - [ ] System sleep and wake

@@ -92,6 +92,11 @@ Settings offer four work intervals, four break durations, and Launch at Login.
 Changing the work interval restarts the current work cycle. Changing the break
 duration affects the next break without postponing it.
 
+Blink Rest does not suppress trackpad or macOS system gestures. Its break
+windows use supported AppKit collection behaviors to remain present across
+Spaces, full-screen applications, and Stage Manager without requesting Input
+Monitoring or Accessibility permission.
+
 ## Limitations
 
 Blink Rest is a behavioral interruption, not a kiosk or security lock. System
