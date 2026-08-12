@@ -13,6 +13,7 @@ protocol BreakWindowManaging: AnyObject {
     func present(makeKey: Bool)
     func dismiss()
     func closePermanently()
+    func diagnosticSummary() -> String
 }
 
 @MainActor
@@ -115,6 +116,10 @@ final class BreakWindow: NSWindow, BreakWindowManaging {
         orderOut(nil)
         contentView = nil
         close()
+    }
+
+    func diagnosticSummary() -> String {
+        "display=\(displayID) window=\(windowNumber) visible=\(isVisible) key=\(isKeyWindow) main=\(isMainWindow) activeSpace=\(isOnActiveSpace) occlusion=\(occlusionState.rawValue) alpha=\(alphaValue) level=\(level.rawValue) frame=\(NSStringFromRect(frame))"
     }
 
 }

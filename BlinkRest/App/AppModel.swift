@@ -15,6 +15,7 @@ final class AppModel: ObservableObject {
 
     init(arguments: [String] = ProcessInfo.processInfo.arguments) {
         let options = DebugLaunchOptions.parse(arguments)
+        let diagnosticsEnabled = arguments.contains("--diagnostics")
         Self.resetDefaultsIfNeeded(options)
 
         let settingsStore = SettingsStore()
@@ -23,7 +24,9 @@ final class AppModel: ObservableObject {
             settingsStore: settingsStore,
             launchOptions: options
         )
-        let overlayCoordinator = OverlayWindowCoordinator()
+        let overlayCoordinator = OverlayWindowCoordinator(
+            diagnosticsEnabled: diagnosticsEnabled
+        )
         let warningCoordinator = WarningPanelCoordinator()
         let lifecycleObserver = WorkspaceLifecycleObserver()
         let controller = SessionController(
@@ -34,6 +37,7 @@ final class AppModel: ObservableObject {
             warningPresenter: warningCoordinator,
             frontmostApplicationManager: overlayCoordinator,
             scheduler: RunLoopSessionScheduler(),
+            diagnosticsEnabled: diagnosticsEnabled,
             automaticallyStarts: false
         )
 

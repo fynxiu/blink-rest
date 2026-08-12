@@ -196,6 +196,10 @@ private final class FakeBreakWindow: BreakWindowManaging {
         isVisible = false
         isKeyWindow = false
     }
+
+    func diagnosticSummary() -> String {
+        "display=\(displayID) visible=\(isVisible) key=\(isKeyWindow)"
+    }
 }
 
 @MainActor

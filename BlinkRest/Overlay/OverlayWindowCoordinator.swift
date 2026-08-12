@@ -54,6 +54,7 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
     private let displayProvider: any OverlayDisplayProviding
     private let windowFactory: any BreakWindowMaking
     private let escapeHoldController: EscapeHoldController
+    private let diagnosticsEnabled: Bool
     private let presentationModel = BreakOverlayPresentationModel()
     private var windows: [UInt32: any BreakWindowManaging] = [:]
     private var displayOrder: [UInt32] = []
@@ -65,28 +66,33 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
         category: "overlay"
     )
 
-    convenience init() {
+    convenience init(diagnosticsEnabled: Bool = false) {
         self.init(
             displayProvider: SystemOverlayDisplayProvider(),
             windowFactory: SystemBreakWindowFactory(),
-            escapeHoldController: EscapeHoldController()
+            escapeHoldController: EscapeHoldController(),
+            diagnosticsEnabled: diagnosticsEnabled
         )
     }
 
     init(
         displayProvider: any OverlayDisplayProviding,
         windowFactory: any BreakWindowMaking,
-        escapeHoldController: EscapeHoldController
+        escapeHoldController: EscapeHoldController,
+        diagnosticsEnabled: Bool = false
     ) {
         self.displayProvider = displayProvider
         self.windowFactory = windowFactory
         self.escapeHoldController = escapeHoldController
+        self.diagnosticsEnabled = diagnosticsEnabled
     }
 
     func present(session: BreakSession) {
+        logDiagnostic("present.begin")
         if isPresented, activeSession == session {
             logger.debug("Overlay presentation refreshed for existing break session")
             reconcileScreens()
+            logDiagnostic("present.refresh.end")
             return
         }
 
@@ -97,16 +103,20 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
 
         logger.debug("Overlay presentation started")
         reconcileScreens()
+        logDiagnostic("present.afterReconcile")
         NSApp.activate()
+        logDiagnostic("present.afterActivate")
 
         if let keyWindow = displayOrder.compactMap({ windows[$0] }).first {
             keyWindow.present(makeKey: true)
         }
+        logDiagnostic("present.afterKeyWindow")
 
         escapeHoldController.activate { [weak self] in
             self?.requestSkip()
         }
         presentationModel.announceCurrentStage()
+        logDiagnostic("present.end")
     }
 
     func update(session: BreakSession, at now: MonotonicInstant) {
@@ -116,8 +126,10 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
     }
 
     func dismiss() {
+        logDiagnostic("dismiss.begin")
         guard isPresented || windows.values.contains(where: \.isVisible) else {
             escapeHoldController.deactivate()
+            logDiagnostic("dismiss.noop")
             return
         }
 
@@ -126,9 +138,11 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
         escapeHoldController.deactivate()
         logger.debug("Overlay presentation dismissed")
         windows.values.forEach { $0.dismiss() }
+        logDiagnostic("dismiss.end")
     }
 
     func reconcileScreens() {
+        logDiagnostic("reconcile.begin")
         let displays = displayProvider.currentDisplays()
         let displayIDs = Set(displays.map(\.id))
         displayOrder = displays.map(\.id)
@@ -166,6 +180,7 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
         logger.debug(
             "Overlay reconciled: \(displayIDs.count, privacy: .public) display(s), \(visibleCount, privacy: .public) visible window(s), \(keyCount, privacy: .public) key window(s), appActive=\(NSApp.isActive, privacy: .public)"
         )
+        logDiagnostic("reconcile.end")
     }
 
     func cancelEscapeHold() {
@@ -215,6 +230,22 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
         guard isPresented else { return }
         escapeHoldController.cancelHold()
         onSkipRequested?()
+    }
+
+    private func logDiagnostic(_ event: String) {
+        guard diagnosticsEnabled else { return }
+
+        let windowState = displayOrder
+            .compactMap { windows[$0]?.diagnosticSummary() }
+            .joined(separator: " | ")
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+        let frontmostIsBlinkRest = NSWorkspace.shared.frontmostApplication?.processIdentifier == currentPID
+        let keyWindowNumber = NSApp.keyWindow?.windowNumber ?? -1
+        let mainWindowNumber = NSApp.mainWindow?.windowNumber ?? -1
+
+        logger.notice(
+            "DIAGNOSTIC \(event, privacy: .public) presented=\(self.isPresented, privacy: .public) activeSession=\(self.activeSession != nil, privacy: .public) appActive=\(NSApp.isActive, privacy: .public) frontmostIsBlinkRest=\(frontmostIsBlinkRest, privacy: .public) keyWindow=\(keyWindowNumber, privacy: .public) mainWindow=\(mainWindowNumber, privacy: .public) displays=\(self.displayOrder.count, privacy: .public) windows=[\(windowState, privacy: .public)]"
+        )
     }
 
     private func makeRootView() -> AnyView {

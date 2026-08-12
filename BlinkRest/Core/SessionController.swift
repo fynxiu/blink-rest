@@ -116,6 +116,7 @@ final class SessionController: ObservableObject {
     private let warningPresenter: WarningPresenting
     private let frontmostApplicationManager: FrontmostApplicationManaging
     private let scheduler: SessionScheduling
+    private let diagnosticsEnabled: Bool
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "com.fynxiu.BlinkRest",
         category: "scheduler"
@@ -132,6 +133,7 @@ final class SessionController: ObservableObject {
         warningPresenter: WarningPresenting,
         frontmostApplicationManager: FrontmostApplicationManaging,
         scheduler: SessionScheduling,
+        diagnosticsEnabled: Bool = false,
         automaticallyStarts: Bool = true
     ) {
         self.timeSource = timeSource
@@ -141,6 +143,7 @@ final class SessionController: ObservableObject {
         self.warningPresenter = warningPresenter
         self.frontmostApplicationManager = frontmostApplicationManager
         self.scheduler = scheduler
+        self.diagnosticsEnabled = diagnosticsEnabled
 
         let monotonicNow = timeSource.monotonicNow
         let wallNow = timeSource.wallNow
@@ -218,6 +221,11 @@ final class SessionController: ObservableObject {
         )
         let previousState = state
         state = transition.state
+        if diagnosticsEnabled, event != .tick {
+            logger.notice(
+                "DIAGNOSTIC session event=\(String(describing: event), privacy: .public) previous=\(previousState.logName, privacy: .public) next=\(self.state.logName, privacy: .public) effects=\(transition.effects.count, privacy: .public)"
+            )
+        }
         if state != previousState {
             logger.debug(
                 "Session state \(previousState.logName, privacy: .public) -> \(self.state.logName, privacy: .public) via \(String(describing: event), privacy: .public)"
