@@ -1,4 +1,5 @@
 import AppKit
+import CoreGraphics
 import QuartzCore
 import SwiftUI
 
@@ -14,6 +15,7 @@ protocol BreakWindowManaging: AnyObject {
     func dismiss()
     func closePermanently()
     func diagnosticSummary() -> String
+    func windowServerDiagnosticSummary() -> String
 }
 
 @MainActor
@@ -119,7 +121,35 @@ final class BreakWindow: NSWindow, BreakWindowManaging {
     }
 
     func diagnosticSummary() -> String {
-        "display=\(displayID) window=\(windowNumber) visible=\(isVisible) key=\(isKeyWindow) main=\(isMainWindow) activeSpace=\(isOnActiveSpace) occlusion=\(occlusionState.rawValue) alpha=\(alphaValue) level=\(level.rawValue) frame=\(NSStringFromRect(frame))"
+        "display=\(displayID) window=\(windowNumber) visible=\(isVisible) key=\(isKeyWindow) main=\(isMainWindow) alpha=\(alphaValue) level=\(level.rawValue) collection=\(collectionBehavior.rawValue) frame=\(NSStringFromRect(frame))"
+    }
+
+    func windowServerDiagnosticSummary() -> String {
+        let info = windowServerInfo
+        let serverOnscreen = (info?[kCGWindowIsOnscreen as String] as? NSNumber)
+            .map { String($0.boolValue) } ?? "unknown"
+        let serverLayer = (info?[kCGWindowLayer as String] as? NSNumber)
+            .map { String($0.intValue) } ?? "unknown"
+        let ownerPID = (info?[kCGWindowOwnerPID as String] as? NSNumber)
+            .map { String($0.intValue) } ?? "unknown"
+        let bounds = info?[kCGWindowBounds as String]
+            .map { String(describing: $0) } ?? "unknown"
+
+        return "\(diagnosticSummary()) activeSpace=\(isOnActiveSpace) windowServerOnscreen=\(serverOnscreen) windowServerLayer=\(serverLayer) ownerPID=\(ownerPID) serverBounds=\(bounds) occlusion=\(occlusionState.rawValue)"
+    }
+
+    private var windowServerInfo: [String: Any]? {
+        guard windowNumber > 0 else { return nil }
+        guard let windows = CGWindowListCopyWindowInfo(
+            .optionIncludingWindow,
+            CGWindowID(windowNumber)
+        ) as? [[String: Any]] else {
+            return nil
+        }
+
+        return windows.first { info in
+            (info[kCGWindowNumber as String] as? NSNumber)?.intValue == windowNumber
+        }
     }
 
 }

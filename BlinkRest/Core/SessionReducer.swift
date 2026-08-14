@@ -16,6 +16,7 @@ enum SessionEffect: Equatable, Sendable {
     case presentOverlay(session: BreakSession)
     case updateOverlay(session: BreakSession, at: MonotonicInstant)
     case dismissOverlay
+    case discardCachedOverlayWindowsAfterWake
     case cancelEscapeHold
     case reconcileOverlays
     case persistPauseUntil(Date?)
@@ -49,9 +50,17 @@ enum SessionReducer {
         case .sessionDidResignActive:
             return suspend(state: state, reason: .inactiveSession, context: context)
         case .systemDidWake:
-            return endSuspension(state: state, reason: .systemSleep)
+            let transition = endSuspension(state: state, reason: .systemSleep)
+            return SessionTransition(
+                state: transition.state,
+                effects: [.discardCachedOverlayWindowsAfterWake] + transition.effects
+            )
         case .screensDidWake:
-            return endSuspension(state: state, reason: .screenSleep)
+            let transition = endSuspension(state: state, reason: .screenSleep)
+            return SessionTransition(
+                state: transition.state,
+                effects: [.discardCachedOverlayWindowsAfterWake] + transition.effects
+            )
         case .sessionDidBecomeActive:
             return endSuspension(state: state, reason: .inactiveSession)
         case .activeSpaceDidChange:

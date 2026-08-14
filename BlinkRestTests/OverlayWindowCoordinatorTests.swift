@@ -31,6 +31,45 @@ final class OverlayWindowCoordinatorTests: XCTestCase {
         XCTAssertEqual(window.presentCount, previousPresentCount + 1)
     }
 
+    func testDelayedDiagnosticProbeDoesNotReplaceWindow() throws {
+        let harness = makeHarness(
+            displays: [OverlayDisplay(id: 1, frame: NSRect(x: 0, y: 0, width: 1280, height: 800))],
+            diagnosticsEnabled: true
+        )
+        harness.coordinator.present(session: breakSession)
+        let original = try XCTUnwrap(harness.factory.windows[1])
+        original.windowServerOnscreen = false
+        harness.diagnosticProbeScheduler.fireNext()
+        XCTAssertTrue(original === harness.factory.windows[1])
+        XCTAssertEqual(harness.factory.makeCount, 1)
+        XCTAssertEqual(original.closeCount, 0)
+    }
+
+    func testDiagnosticsDisabledDoesNotScheduleWindowServerProbe() {
+        let harness = makeHarness(displays: [OverlayDisplay(id: 1, frame: NSRect(x: 0, y: 0, width: 1280, height: 800))])
+        harness.coordinator.present(session: breakSession)
+        XCTAssertEqual(harness.diagnosticProbeScheduler.pendingCount, 0)
+    }
+
+    func testWakeDiscardClosesCachedWindowAndNextBreakCreatesFreshWindow() throws {
+        let harness = makeHarness(displays: [
+            OverlayDisplay(id: 1, frame: NSRect(x: 0, y: 0, width: 1280, height: 800))
+        ])
+        harness.coordinator.present(session: breakSession)
+        let original = try XCTUnwrap(harness.factory.windows[1])
+
+        harness.coordinator.dismiss()
+        harness.coordinator.discardCachedWindowsAfterWake()
+
+        XCTAssertEqual(original.closeCount, 1)
+        XCTAssertTrue(harness.coordinator.managedDisplayIDs.isEmpty)
+
+        harness.coordinator.present(session: breakSession)
+        let replacement = try XCTUnwrap(harness.factory.windows[1])
+        XCTAssertFalse(original === replacement)
+        XCTAssertEqual(harness.factory.makeCount, 2)
+    }
+
     func testPresentAndRepeatedPresentReuseOneWindowPerDisplay() {
         let harness = makeHarness(displays: [
             OverlayDisplay(id: 1, frame: NSRect(x: 0, y: 0, width: 1280, height: 800)),
@@ -96,11 +135,15 @@ final class OverlayWindowCoordinatorTests: XCTestCase {
         )
     }
 
-    private func makeHarness(displays: [OverlayDisplay]) -> OverlayHarness {
+    private func makeHarness(
+        displays: [OverlayDisplay],
+        diagnosticsEnabled: Bool = false
+    ) -> OverlayHarness {
         let displayProvider = FakeOverlayDisplayProvider(displays: displays)
         let factory = FakeBreakWindowFactory()
         let scheduler = FakeOverlayEscapeScheduler()
         let eventMonitor = FakeOverlayEventMonitor()
+        let diagnosticProbeScheduler = FakeOverlayDiagnosticProbeScheduler()
         let escapeController = EscapeHoldController(
             holdDuration: EscapeHoldController.defaultHoldDuration,
             scheduler: scheduler,
@@ -109,13 +152,16 @@ final class OverlayWindowCoordinatorTests: XCTestCase {
         let coordinator = OverlayWindowCoordinator(
             displayProvider: displayProvider,
             windowFactory: factory,
-            escapeHoldController: escapeController
+            escapeHoldController: escapeController,
+            diagnosticProbeScheduler: diagnosticProbeScheduler,
+            diagnosticsEnabled: diagnosticsEnabled
         )
         return OverlayHarness(
             coordinator: coordinator,
             displayProvider: displayProvider,
             factory: factory,
-            eventMonitor: eventMonitor
+            eventMonitor: eventMonitor,
+            diagnosticProbeScheduler: diagnosticProbeScheduler
         )
     }
 }
@@ -126,6 +172,7 @@ private struct OverlayHarness {
     let displayProvider: FakeOverlayDisplayProvider
     let factory: FakeBreakWindowFactory
     let eventMonitor: FakeOverlayEventMonitor
+    let diagnosticProbeScheduler: FakeOverlayDiagnosticProbeScheduler
 }
 
 @MainActor
@@ -163,6 +210,7 @@ private final class FakeBreakWindow: BreakWindowManaging {
     private(set) var frame: NSRect
     private(set) var isVisible = false
     private(set) var isKeyWindow = false
+    var windowServerOnscreen = true
     private(set) var presentCount = 0
     private(set) var dismissCount = 0
     private(set) var closeCount = 0
@@ -199,6 +247,23 @@ private final class FakeBreakWindow: BreakWindowManaging {
 
     func diagnosticSummary() -> String {
         "display=\(displayID) visible=\(isVisible) key=\(isKeyWindow)"
+    }
+
+    func windowServerDiagnosticSummary() -> String {
+        "\(diagnosticSummary()) windowServerOnscreen=\(windowServerOnscreen)"
+    }
+}
+
+@MainActor
+private final class FakeOverlayDiagnosticProbeScheduler: OverlayDiagnosticProbeScheduling {
+    private var actions: [@MainActor @Sendable () -> Void] = []
+    var pendingCount: Int { actions.count }
+    func schedule(after delay: TimeInterval, action: @escaping @MainActor @Sendable () -> Void) {
+        actions.append(action)
+    }
+    func fireNext() {
+        guard !actions.isEmpty else { return }
+        actions.removeFirst()()
     }
 }
 

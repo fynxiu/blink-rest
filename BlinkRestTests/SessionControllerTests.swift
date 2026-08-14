@@ -122,9 +122,11 @@ final class SessionControllerTests: XCTestCase {
         XCTAssertNil(harness.scheduler.tickInterval)
 
         harness.controller.dispatch(.systemDidWake)
+        XCTAssertEqual(harness.overlay.wakeDiscardCount, 1)
         XCTAssertEqual(harness.scheduler.suspensionScheduleCount, 0)
 
         harness.controller.dispatch(.screensDidWake)
+        XCTAssertEqual(harness.overlay.wakeDiscardCount, 2)
         XCTAssertEqual(harness.scheduler.suspensionScheduleCount, 1)
 
         harness.controller.dispatch(.screensDidWake)
@@ -320,6 +322,7 @@ private final class FakeOverlayPresenter: OverlayPresenting {
     var presentedSession: BreakSession?
     var updates: [Update] = []
     var dismissCount = 0
+    var wakeDiscardCount = 0
     var reconcileCount = 0
     var cancelHoldCount = 0
 
@@ -334,6 +337,10 @@ private final class FakeOverlayPresenter: OverlayPresenting {
     func dismiss() {
         dismissCount += 1
         presentedSession = nil
+    }
+
+    func discardCachedWindowsAfterWake() {
+        wakeDiscardCount += 1
     }
 
     func reconcileScreens() {

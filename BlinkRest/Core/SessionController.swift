@@ -17,6 +17,7 @@ protocol OverlayPresenting: AnyObject {
     func present(session: BreakSession)
     func update(session: BreakSession, at now: MonotonicInstant)
     func dismiss()
+    func discardCachedWindowsAfterWake()
     func reconcileScreens()
     func cancelEscapeHold()
 }
@@ -291,6 +292,8 @@ final class SessionController: ObservableObject {
                 overlayPresenter.update(session: session, at: now)
             case .dismissOverlay:
                 overlayPresenter.dismiss()
+            case .discardCachedOverlayWindowsAfterWake:
+                overlayPresenter.discardCachedWindowsAfterWake()
             case .cancelEscapeHold:
                 overlayPresenter.cancelEscapeHold()
             case .reconcileOverlays:

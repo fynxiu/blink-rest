@@ -2,6 +2,27 @@ import AppKit
 import OSLog
 import SwiftUI
 
+@MainActor
+protocol OverlayDiagnosticProbeScheduling {
+    func schedule(
+        after delay: TimeInterval,
+        action: @escaping @MainActor @Sendable () -> Void
+    )
+}
+
+@MainActor
+struct RunLoopOverlayDiagnosticProbeScheduler: OverlayDiagnosticProbeScheduling {
+    func schedule(
+        after delay: TimeInterval,
+        action: @escaping @MainActor @Sendable () -> Void
+    ) {
+        let timer = Timer(timeInterval: delay, repeats: false) { _ in
+            MainActor.assumeIsolated { action() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+    }
+}
+
 struct OverlayDisplay: Equatable, Hashable, Sendable {
     let id: UInt32
     let frame: CGRect
@@ -54,12 +75,14 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
     private let displayProvider: any OverlayDisplayProviding
     private let windowFactory: any BreakWindowMaking
     private let escapeHoldController: EscapeHoldController
+    private let diagnosticProbeScheduler: any OverlayDiagnosticProbeScheduling
     private let diagnosticsEnabled: Bool
     private let presentationModel = BreakOverlayPresentationModel()
     private var windows: [UInt32: any BreakWindowManaging] = [:]
     private var displayOrder: [UInt32] = []
     private var activeSession: BreakSession?
     private var previouslyFrontmostApplication: NSRunningApplication?
+    private var presentationGeneration = 0
 
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "com.fynxiu.BlinkRest",
@@ -71,6 +94,7 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
             displayProvider: SystemOverlayDisplayProvider(),
             windowFactory: SystemBreakWindowFactory(),
             escapeHoldController: EscapeHoldController(),
+            diagnosticProbeScheduler: RunLoopOverlayDiagnosticProbeScheduler(),
             diagnosticsEnabled: diagnosticsEnabled
         )
     }
@@ -79,11 +103,13 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
         displayProvider: any OverlayDisplayProviding,
         windowFactory: any BreakWindowMaking,
         escapeHoldController: EscapeHoldController,
+        diagnosticProbeScheduler: any OverlayDiagnosticProbeScheduling = RunLoopOverlayDiagnosticProbeScheduler(),
         diagnosticsEnabled: Bool = false
     ) {
         self.displayProvider = displayProvider
         self.windowFactory = windowFactory
         self.escapeHoldController = escapeHoldController
+        self.diagnosticProbeScheduler = diagnosticProbeScheduler
         self.diagnosticsEnabled = diagnosticsEnabled
     }
 
@@ -100,6 +126,7 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
         activeSession = session
         presentationModel.update(session: session, at: session.startedAt)
         isPresented = true
+        presentationGeneration += 1
 
         logger.debug("Overlay presentation started")
         reconcileScreens()
@@ -135,10 +162,21 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
 
         isPresented = false
         activeSession = nil
+        presentationGeneration += 1
         escapeHoldController.deactivate()
         logger.debug("Overlay presentation dismissed")
         windows.values.forEach { $0.dismiss() }
         logDiagnostic("dismiss.end")
+    }
+
+    func discardCachedWindowsAfterWake() {
+        logDiagnostic("wake.discardWindows.begin")
+        presentationGeneration += 1
+        windows.values.forEach { $0.closePermanently() }
+        windows.removeAll()
+        displayOrder.removeAll()
+        managedDisplayIDs.removeAll()
+        logDiagnostic("wake.discardWindows.end")
     }
 
     func reconcileScreens() {
@@ -181,6 +219,7 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
             "Overlay reconciled: \(displayIDs.count, privacy: .public) display(s), \(visibleCount, privacy: .public) visible window(s), \(keyCount, privacy: .public) key window(s), appActive=\(NSApp.isActive, privacy: .public)"
         )
         logDiagnostic("reconcile.end")
+        scheduleDiagnosticProbes()
     }
 
     func cancelEscapeHold() {
@@ -232,19 +271,45 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
         onSkipRequested?()
     }
 
+    private func scheduleDiagnosticProbes() {
+        guard diagnosticsEnabled, isPresented else { return }
+        let generation = presentationGeneration
+        for delay in [0.25, 1.0] {
+            diagnosticProbeScheduler.schedule(after: delay) { [weak self] in
+                self?.logWindowServerProbe(generation: generation, delay: delay)
+            }
+        }
+    }
+
+    private func logWindowServerProbe(generation: Int, delay: TimeInterval) {
+        guard diagnosticsEnabled, isPresented, generation == presentationGeneration else { return }
+
+        let windowState = displayOrder
+            .compactMap { windows[$0]?.windowServerDiagnosticSummary() }
+            .joined(separator: " | ")
+        let currentPID = ProcessInfo.processInfo.processIdentifier
+        let frontmostIsBlinkRest = NSWorkspace.shared.frontmostApplication?.processIdentifier == currentPID
+        let keyWindowNumber = NSApp.keyWindow?.windowNumber ?? -1
+        let mainWindowNumber = NSApp.mainWindow?.windowNumber ?? -1
+        let delayMilliseconds = Int((delay * 1_000).rounded())
+
+        logger.notice(
+            "DIAGNOSTIC probe.windowServer delayMs=\(delayMilliseconds, privacy: .public) generation=\(generation, privacy: .public) presented=\(self.isPresented, privacy: .public) appActive=\(NSApp.isActive, privacy: .public) frontmostIsBlinkRest=\(frontmostIsBlinkRest, privacy: .public) keyWindow=\(keyWindowNumber, privacy: .public) mainWindow=\(mainWindowNumber, privacy: .public) windows=[\(windowState, privacy: .public)]"
+        )
+    }
+
     private func logDiagnostic(_ event: String) {
         guard diagnosticsEnabled else { return }
 
         let windowState = displayOrder
             .compactMap { windows[$0]?.diagnosticSummary() }
             .joined(separator: " | ")
-        let currentPID = ProcessInfo.processInfo.processIdentifier
-        let frontmostIsBlinkRest = NSWorkspace.shared.frontmostApplication?.processIdentifier == currentPID
         let keyWindowNumber = NSApp.keyWindow?.windowNumber ?? -1
         let mainWindowNumber = NSApp.mainWindow?.windowNumber ?? -1
+        let activationPolicy = NSApp.activationPolicy().rawValue
 
         logger.notice(
-            "DIAGNOSTIC \(event, privacy: .public) presented=\(self.isPresented, privacy: .public) activeSession=\(self.activeSession != nil, privacy: .public) appActive=\(NSApp.isActive, privacy: .public) frontmostIsBlinkRest=\(frontmostIsBlinkRest, privacy: .public) keyWindow=\(keyWindowNumber, privacy: .public) mainWindow=\(mainWindowNumber, privacy: .public) displays=\(self.displayOrder.count, privacy: .public) windows=[\(windowState, privacy: .public)]"
+            "DIAGNOSTIC \(event, privacy: .public) presented=\(self.isPresented, privacy: .public) activeSession=\(self.activeSession != nil, privacy: .public) appActive=\(NSApp.isActive, privacy: .public) activationPolicy=\(activationPolicy, privacy: .public) keyWindow=\(keyWindowNumber, privacy: .public) mainWindow=\(mainWindowNumber, privacy: .public) displays=\(self.displayOrder.count, privacy: .public) windows=[\(windowState, privacy: .public)]"
         )
     }
 

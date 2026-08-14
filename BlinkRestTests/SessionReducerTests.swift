@@ -227,20 +227,28 @@ final class SessionReducerTests: XCTestCase {
         )
 
         let oneRemaining = reduce(both.state, .systemDidWake)
+        XCTAssertEqual(oneRemaining.effects.first, .discardCachedOverlayWindowsAfterWake)
         XCTAssertEqual(
             oneRemaining.state,
             .suspended(reasons: [.screenSleep], pauseUntil: nil)
         )
-        XCTAssertTrue(oneRemaining.effects.isEmpty)
+        XCTAssertEqual(
+            oneRemaining.effects,
+            [.discardCachedOverlayWindowsAfterWake]
+        )
 
         let pending = reduce(oneRemaining.state, .screensDidWake)
+        XCTAssertEqual(pending.effects.first, .discardCachedOverlayWindowsAfterWake)
         XCTAssertEqual(
             pending.state,
             .suspended(reasons: [], pauseUntil: nil)
         )
         XCTAssertEqual(
             pending.effects,
-            [.scheduleSuspensionResumeDebounce(delay: 0.5)]
+            [
+                .discardCachedOverlayWindowsAfterWake,
+                .scheduleSuspensionResumeDebounce(delay: 0.5)
+            ]
         )
 
         let resumed = reduce(
