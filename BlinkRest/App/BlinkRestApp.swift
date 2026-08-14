@@ -20,7 +20,8 @@ struct BlinkRestApp: App {
         Settings {
             SettingsView(
                 settingsStore: model.settingsStore,
-                loginItemService: model.loginItemService
+                loginItemService: model.loginItemService,
+                updateChecker: model.updateChecker
             )
         }
         .defaultSize(width: 500, height: 340)

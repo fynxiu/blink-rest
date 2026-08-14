@@ -1,3 +1,4 @@
+import AppKit
 import Combine
 import Foundation
 
@@ -5,6 +6,7 @@ import Foundation
 final class AppModel: ObservableObject {
     let settingsStore: SettingsStore
     let loginItemService: LoginItemService
+    let updateChecker: UpdateChecker
     let sessionController: SessionController
 
     private let scheduleProvider: RuntimeScheduleProvider
@@ -20,6 +22,7 @@ final class AppModel: ObservableObject {
 
         let settingsStore = SettingsStore()
         let loginItemService = LoginItemService()
+        let updateChecker = UpdateChecker()
         let scheduleProvider = RuntimeScheduleProvider(
             settingsStore: settingsStore,
             launchOptions: options
@@ -43,6 +46,7 @@ final class AppModel: ObservableObject {
 
         self.settingsStore = settingsStore
         self.loginItemService = loginItemService
+        self.updateChecker = updateChecker
         self.scheduleProvider = scheduleProvider
         self.overlayCoordinator = overlayCoordinator
         self.warningCoordinator = warningCoordinator
@@ -61,6 +65,10 @@ final class AppModel: ObservableObject {
         lifecycleObserver.onEvent = { [weak controller] event in
             controller?.dispatch(event.sessionEvent)
         }
+        updateChecker.onAutomaticUpdateAvailable = { [weak updateChecker] release in
+            guard let currentVersion = updateChecker?.currentVersion else { return }
+            Self.presentUpdateAlert(release: release, currentVersion: currentVersion)
+        }
 
         controller.objectWillChange
             .sink { [weak self] in
@@ -70,6 +78,12 @@ final class AppModel: ObservableObject {
 
         lifecycleObserver.start()
         controller.start()
+
+        if !options.isUITesting {
+            Task { [weak updateChecker] in
+                await updateChecker?.checkAutomatically()
+            }
+        }
     }
 
     var menuPresentation: MenuBarPresentation {
@@ -113,5 +127,41 @@ final class AppModel: ObservableObject {
         defaults.removeObject(forKey: SettingsStore.Keys.breakDurationSeconds)
         defaults.removeObject(forKey: SettingsStore.Keys.persistedPauseUntil)
         defaults.removeObject(forKey: SettingsStore.Keys.legacyLaunchAtLogin)
+        defaults.removeObject(forKey: UpdateChecker.Keys.lastAutomaticCheckAt)
+        defaults.removeObject(forKey: UpdateChecker.Keys.lastPromptedVersion)
+    }
+
+    private static func presentUpdateAlert(
+        release: UpdateRelease,
+        currentVersion: AppVersion
+    ) {
+        let alert = NSAlert()
+        alert.messageText = String(
+            localized: "update.alert.title",
+            defaultValue: "Blink Rest Update Available"
+        )
+        let format = String(
+            localized: "update.alert.message.format",
+            defaultValue: "Blink Rest %@ is available. You are using %@."
+        )
+        alert.informativeText = String(
+            format: format,
+            locale: Locale.current,
+            release.version.description,
+            currentVersion.description
+        )
+        alert.addButton(withTitle: String(
+            localized: "update.alert.view",
+            defaultValue: "View Update"
+        ))
+        alert.addButton(withTitle: String(
+            localized: "update.alert.later",
+            defaultValue: "Later"
+        ))
+
+        NSApp.activate()
+        if alert.runModal() == .alertFirstButtonReturn {
+            NSWorkspace.shared.open(release.url)
+        }
     }
 }

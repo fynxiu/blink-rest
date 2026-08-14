@@ -243,8 +243,80 @@
     },
     "settings.privacy" : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "No analytics. No account. Blink Rest does not transmit your data." } },
-        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "无分析、无账户，Blink Rest 不会传输你的数据。" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No analytics. No account. Blink Rest contacts GitHub only to check for updates." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "无分析、无账户，Blink Rest 仅会连接 GitHub 检查更新。" } }
+      }
+    },
+    "settings.update.check" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Check for Updates..." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "检查更新…" } }
+      }
+    },
+    "settings.update" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Updates" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "更新" } }
+      }
+    },
+    "settings.update.checking" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Checking for updates..." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "正在检查更新…" } }
+      }
+    },
+    "settings.update.current" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Blink Rest is up to date." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Blink Rest 已是最新版本。" } }
+      }
+    },
+    "settings.update.available.format" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Version %@ is available." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "版本 %@ 可用。" } }
+      }
+    },
+    "settings.update.view" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "View Update" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "查看更新" } }
+      }
+    },
+    "settings.update.failed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Could not check for updates." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "无法检查更新。" } }
+      }
+    },
+    "update.alert.title" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Blink Rest Update Available" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Blink Rest 有可用更新" } }
+      }
+    },
+    "update.alert.message.format" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Blink Rest %@ is available. You are using %@." } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "Blink Rest %@ 已发布。你当前使用的是 %@。" } }
+      }
+    },
+    "update.alert.view" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "View Update" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "查看更新" } }
+      }
+    },
+    "update.alert.later" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Later" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "稍后" } }
+      }
+    },
+    "common.ok" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "OK" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "好" } }
       }
     },
     "settings.version.format" : {

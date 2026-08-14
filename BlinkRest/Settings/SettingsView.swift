@@ -4,13 +4,16 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject private var settingsStore: SettingsStore
     @ObservedObject private var loginItemService: LoginItemService
+    @ObservedObject private var updateChecker: UpdateChecker
 
     init(
         settingsStore: SettingsStore,
-        loginItemService: LoginItemService
+        loginItemService: LoginItemService,
+        updateChecker: UpdateChecker
     ) {
         self.settingsStore = settingsStore
         self.loginItemService = loginItemService
+        self.updateChecker = updateChecker
     }
 
     var body: some View {
@@ -44,6 +47,36 @@ struct SettingsView: View {
                         defaultValue: "Work interval changes restart the current cycle. Break duration changes apply to the next break."
                     )
                 )
+            }
+
+            Section {
+                HStack {
+                    Text(versionLabel)
+
+                    Spacer()
+
+                    if updateChecker.isChecking {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+
+                    Button {
+                        Task {
+                            await checkForUpdatesManually()
+                        }
+                    } label: {
+                        Label(
+                            String(
+                                localized: "settings.update.check",
+                                defaultValue: "Check for Updates..."
+                            ),
+                            systemImage: "arrow.clockwise"
+                        )
+                    }
+                    .disabled(updateChecker.isChecking)
+                }
+            } header: {
+                Text(String(localized: "settings.update", defaultValue: "Updates"))
             }
 
             Section {
@@ -90,10 +123,9 @@ struct SettingsView: View {
                     Text(
                         String(
                             localized: "settings.privacy",
-                            defaultValue: "No analytics. No account. Blink Rest does not transmit your data."
+                            defaultValue: "No analytics. No account. Blink Rest contacts GitHub only to check for updates."
                         )
                     )
-                    Text(versionLabel)
                 }
             }
         }
@@ -102,8 +134,8 @@ struct SettingsView: View {
             minWidth: 480,
             idealWidth: 480,
             maxWidth: 560,
-            minHeight: 300,
-            idealHeight: 340
+            minHeight: 360,
+            idealHeight: 400
         )
         .onAppear {
             loginItemService.refresh()
@@ -141,6 +173,70 @@ struct SettingsView: View {
             ?? "1.0.0"
         let format = String(localized: "settings.version.format", defaultValue: "Version %@")
         return String(format: format, locale: Locale.current, version)
+    }
+
+    private func updateAvailableLabel(for version: AppVersion) -> String {
+        let format = String(
+            localized: "settings.update.available.format",
+            defaultValue: "Version %@ is available."
+        )
+        return String(format: format, locale: Locale.current, version.description)
+    }
+
+    private func checkForUpdatesManually() async {
+        await updateChecker.checkManually()
+
+        switch updateChecker.state {
+        case .upToDate:
+            presentInformationalAlert(
+                title: String(
+                    localized: "settings.update.current",
+                    defaultValue: "Blink Rest is up to date."
+                )
+            )
+        case let .updateAvailable(release):
+            let alert = NSAlert()
+            alert.messageText = String(
+                localized: "update.alert.title",
+                defaultValue: "Blink Rest Update Available"
+            )
+            alert.informativeText = updateAvailableLabel(for: release.version)
+            alert.addButton(withTitle: String(
+                localized: "settings.update.view",
+                defaultValue: "View Update"
+            ))
+            alert.addButton(withTitle: String(
+                localized: "update.alert.later",
+                defaultValue: "Later"
+            ))
+
+            NSApp.activate()
+            if alert.runModal() == .alertFirstButtonReturn {
+                NSWorkspace.shared.open(release.url)
+            }
+        case .failed:
+            presentInformationalAlert(
+                title: String(
+                    localized: "settings.update.failed",
+                    defaultValue: "Could not check for updates."
+                ),
+                style: .warning
+            )
+        case .idle, .checking:
+            break
+        }
+    }
+
+    private func presentInformationalAlert(
+        title: String,
+        style: NSAlert.Style = .informational
+    ) {
+        let alert = NSAlert()
+        alert.alertStyle = style
+        alert.messageText = title
+        alert.addButton(withTitle: String(localized: "common.ok", defaultValue: "OK"))
+        NSApp.activate()
+        alert.runModal()
     }
 
     private func minutesLabel(for seconds: TimeInterval) -> String {
