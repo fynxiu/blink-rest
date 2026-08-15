@@ -570,40 +570,42 @@ struct OverlayManager::Impl {
             return;
         }
 
-        const auto left = D2D1::Point2F(center.x - 34.0f, center.y);
-        const auto right = D2D1::Point2F(center.x + 34.0f, center.y);
-        sink->BeginFigure(
-            left,
-            stage == BreakStage::blink
-                ? D2D1_FIGURE_BEGIN_FILLED
-                : D2D1_FIGURE_BEGIN_HOLLOW
-        );
+        // Keep the Windows glyph original, but match the macOS overlay visual
+        // weight and semantic states. In particular, never turn the blink
+        // state into one solid white almond: the iris/pupil must remain legible.
+        constexpr float half_width = 32.0f;
+        constexpr float half_height = 17.0f;
+        const auto left = D2D1::Point2F(center.x - half_width, center.y);
+        const auto right = D2D1::Point2F(center.x + half_width, center.y);
+        sink->BeginFigure(left, D2D1_FIGURE_BEGIN_HOLLOW);
         sink->AddBezier(D2D1::BezierSegment(
-            D2D1::Point2F(center.x - 18.0f, center.y - 20.0f),
-            D2D1::Point2F(center.x + 18.0f, center.y - 20.0f),
+            D2D1::Point2F(center.x - 18.0f, center.y - half_height),
+            D2D1::Point2F(center.x + 18.0f, center.y - half_height),
             right
         ));
         sink->AddBezier(D2D1::BezierSegment(
-            D2D1::Point2F(center.x + 18.0f, center.y + 20.0f),
-            D2D1::Point2F(center.x - 18.0f, center.y + 20.0f),
+            D2D1::Point2F(center.x + 18.0f, center.y + half_height),
+            D2D1::Point2F(center.x - 18.0f, center.y + half_height),
             left
         ));
         sink->EndFigure(D2D1_FIGURE_END_CLOSED);
         sink->Close();
 
+        target->DrawGeometry(eye, brush, 2.0f);
+
         if (stage == BreakStage::blink) {
-            target->FillGeometry(eye, brush);
+            // A fuller eye for the blink cue, analogous in visual weight to
+            // macOS eye.fill, while preserving an unmistakable pupil.
+            target->DrawEllipse(D2D1::Ellipse(center, 11.0f, 11.0f), brush, 2.0f);
+            target->FillEllipse(D2D1::Ellipse(center, 5.0f, 5.0f), brush);
         } else {
-            target->DrawGeometry(eye, brush, 2.0f);
-            target->FillEllipse(D2D1::Ellipse(center, 6.0f, 6.0f), brush);
+            target->FillEllipse(D2D1::Ellipse(center, 5.5f, 5.5f), brush);
         }
 
         if (stage == BreakStage::close_eyes) {
-            const auto start = D2D1::Point2F(center.x - 27.0f, center.y - 24.0f);
-            const auto end = D2D1::Point2F(center.x + 27.0f, center.y + 24.0f);
-            target->DrawLine(start, end, brush, 4.0f);
-            target->FillEllipse(D2D1::Ellipse(start, 2.0f, 2.0f), brush);
-            target->FillEllipse(D2D1::Ellipse(end, 2.0f, 2.0f), brush);
+            const auto start = D2D1::Point2F(center.x - 28.0f, center.y - 25.0f);
+            const auto end = D2D1::Point2F(center.x + 28.0f, center.y + 25.0f);
+            target->DrawLine(start, end, brush, 3.0f);
         }
 
         release(sink);

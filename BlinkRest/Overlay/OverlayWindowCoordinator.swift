@@ -66,6 +66,21 @@ final class SystemBreakWindowFactory: BreakWindowMaking {
 }
 
 @MainActor
+protocol OverlayApplicationActivating: AnyObject {
+    var isActive: Bool { get }
+    func activate()
+}
+
+@MainActor
+final class SystemOverlayApplicationActivator: OverlayApplicationActivating {
+    var isActive: Bool { NSApp.isActive }
+
+    func activate() {
+        NSApp.activate()
+    }
+}
+
+@MainActor
 final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationManaging {
     var onSkipRequested: (() -> Void)?
 
@@ -74,6 +89,7 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
 
     private let displayProvider: any OverlayDisplayProviding
     private let windowFactory: any BreakWindowMaking
+    private let applicationActivator: any OverlayApplicationActivating
     private let escapeHoldController: EscapeHoldController
     private let diagnosticProbeScheduler: any OverlayDiagnosticProbeScheduling
     private let diagnosticsEnabled: Bool
@@ -93,6 +109,7 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
         self.init(
             displayProvider: SystemOverlayDisplayProvider(),
             windowFactory: SystemBreakWindowFactory(),
+            applicationActivator: SystemOverlayApplicationActivator(),
             escapeHoldController: EscapeHoldController(),
             diagnosticProbeScheduler: RunLoopOverlayDiagnosticProbeScheduler(),
             diagnosticsEnabled: diagnosticsEnabled
@@ -102,12 +119,14 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
     init(
         displayProvider: any OverlayDisplayProviding,
         windowFactory: any BreakWindowMaking,
+        applicationActivator: any OverlayApplicationActivating = SystemOverlayApplicationActivator(),
         escapeHoldController: EscapeHoldController,
         diagnosticProbeScheduler: any OverlayDiagnosticProbeScheduling = RunLoopOverlayDiagnosticProbeScheduler(),
         diagnosticsEnabled: Bool = false
     ) {
         self.displayProvider = displayProvider
         self.windowFactory = windowFactory
+        self.applicationActivator = applicationActivator
         self.escapeHoldController = escapeHoldController
         self.diagnosticProbeScheduler = diagnosticProbeScheduler
         self.diagnosticsEnabled = diagnosticsEnabled
@@ -129,10 +148,13 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
         presentationGeneration += 1
 
         logger.debug("Overlay presentation started")
+        // Activate before the first order-front. On macOS, ordering an accessory-app
+        // window while inactive can initially attach it only to the app's old Space
+        // even with .canJoinAllSpaces; a later Space change then repairs it.
+        applicationActivator.activate()
+        logDiagnostic("present.afterActivate")
         reconcileScreens()
         logDiagnostic("present.afterReconcile")
-        NSApp.activate()
-        logDiagnostic("present.afterActivate")
 
         if let keyWindow = displayOrder.compactMap({ windows[$0] }).first {
             keyWindow.present(makeKey: true)
@@ -208,7 +230,7 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
         if isPresented,
            !windows.values.contains(where: \.isKeyWindow),
            let keyWindow = displayOrder.compactMap({ windows[$0] }).first {
-            NSApp.activate()
+            applicationActivator.activate()
             keyWindow.present(makeKey: true)
         }
 
