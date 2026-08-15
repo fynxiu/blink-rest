@@ -73,7 +73,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: release-macos
-          path: ${{ runner.temp }}/blinkrest-dist/*.zip
+          path: |
+            ${{ runner.temp }}/blinkrest-dist/*.zip
+            ${{ runner.temp }}/blinkrest-dist/*.dmg
           if-no-files-found: error
           retention-days: 3
 
@@ -85,6 +87,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Install Inno Setup
+        shell: powershell
+        run: choco install innosetup --no-progress -y
       - name: Package Windows x64
         shell: powershell
         env:
@@ -96,7 +101,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: release-windows
-          path: ${{ runner.temp }}/blinkrest-dist/BlinkRest-v${{ inputs.version }}-windows-x64.zip
+          path: |
+            ${{ runner.temp }}/blinkrest-dist/BlinkRest-v${{ inputs.version }}-windows-x64.zip
+            ${{ runner.temp }}/blinkrest-dist/BlinkRest-v${{ inputs.version }}-windows-x64-setup.exe
           if-no-files-found: error
           retention-days: 3
 
@@ -137,11 +144,14 @@ jobs:
           if [[ "$PLATFORMS" == "macos" || "$PLATFORMS" == "both" ]]; then
             test -f "dist/BlinkRest-$tag-macos-arm64.zip"
             test -f "dist/BlinkRest-$tag-macos-x86_64.zip"
+            test -f "dist/BlinkRest-$tag-macos-arm64.dmg"
+            test -f "dist/BlinkRest-$tag-macos-x86_64.dmg"
           fi
           if [[ "$PLATFORMS" == "windows" || "$PLATFORMS" == "both" ]]; then
             test -f "dist/BlinkRest-$tag-windows-x64.zip"
+            test -f "dist/BlinkRest-$tag-windows-x64-setup.exe"
           fi
-          find dist -maxdepth 1 -type f -name 'BlinkRest-*.zip' -print0 \
+          find dist -maxdepth 1 -type f \( -name 'BlinkRest-*.zip' -o -name 'BlinkRest-*.dmg' -o -name 'BlinkRest-*-setup.exe' \) -print0 \
             | sort -z \
             | xargs -0 sha256sum \
             | sed 's#  dist/#  #' > dist/SHA256SUMS.txt

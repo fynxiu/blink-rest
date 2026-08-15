@@ -60,6 +60,32 @@ function Find-WindowsSdkTool {
     return $null
 }
 
+function Find-InnoSetup {
+    $userCandidate = Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe'
+    if (Test-Path $userCandidate) {
+        return $userCandidate
+    }
+
+    $roots = @(
+        [Environment]::GetFolderPath('ProgramFilesX86'),
+        [Environment]::GetFolderPath('ProgramFiles')
+    )
+    foreach ($root in $roots) {
+        if (-not $root) {
+            continue
+        }
+        $candidate = Join-Path $root 'Inno Setup 6\ISCC.exe'
+        if (Test-Path $candidate) {
+            return $candidate
+        }
+    }
+    $fromPath = Get-Command 'ISCC.exe' -ErrorAction SilentlyContinue
+    if ($fromPath) {
+        return $fromPath.Source
+    }
+    return $null
+}
+
 $tag = 'v' + $Version
 $assetName = "BlinkRest-$tag-windows-x64.zip"
 $assetPath = Join-Path $DistDir $assetName
@@ -124,13 +150,43 @@ if (Test-Path $assetPath) {
 }
 Compress-Archive -Path (Join-Path $stagingDir '*') -DestinationPath $assetPath -CompressionLevel Optimal
 
-$hash = (Get-FileHash -Algorithm SHA256 $assetPath).Hash.ToLowerInvariant()
-Set-Content -Path $checksumsPath -Encoding ASCII -Value ($hash + '  ' + $assetName)
+$innoSetup = Find-InnoSetup
+if (-not $innoSetup) {
+    throw 'Inno Setup 6 compiler (ISCC.exe) is required to create the Windows installer.'
+}
+Write-Output ('INNO_SETUP=' + $innoSetup)
+$installerScript = Join-Path $SourceDir 'installer\BlinkRest.iss'
+$readmePath = Join-Path $SourceDir 'README.md'
+Invoke-Checked $innoSetup @(
+    ('/DMyAppVersion=' + $Version),
+    ('/DSourceExe=' + $executable),
+    ('/DSourceReadme=' + $readmePath),
+    ('/DOutputDir=' + $DistDir),
+    $installerScript
+)
+$installerPath = Join-Path $DistDir ('BlinkRest-v' + $Version + '-windows-x64-setup.exe')
+if (-not (Test-Path $installerPath)) {
+    throw "expected installer not found: $installerPath"
+}
+$installerSignature = Get-AuthenticodeSignature $installerPath
+Write-Output ('INSTALLER_SIGNATURE_STATUS=' + $installerSignature.Status)
+if ($installerSignature.Status -ne 'Valid') {
+    Write-Warning 'Installer is not Authenticode-signed. Packaging continues for local/test distribution only.'
+}
+
+$checksumLines = foreach ($artifactPath in @($assetPath, $installerPath)) {
+    $hash = (Get-FileHash -Algorithm SHA256 $artifactPath).Hash.ToLowerInvariant()
+    $hash + '  ' + (Split-Path -Leaf $artifactPath)
+}
+Set-Content -Path $checksumsPath -Encoding ASCII -Value $checksumLines
 
 $exeSize = (Get-Item $executable).Length
 $zipSize = (Get-Item $assetPath).Length
+$installerSize = (Get-Item $installerPath).Length
 Write-Output 'HEADLESS_SMOKE=PASS'
 Write-Output "EXE_BYTES=$exeSize"
 Write-Output "ZIP_BYTES=$zipSize"
 Write-Output "ASSET=$assetPath"
+Write-Output "INSTALLER_BYTES=$installerSize"
+Write-Output "ASSET=$installerPath"
 Write-Output "CHECKSUMS=$checksumsPath"

@@ -80,6 +80,11 @@ adding another platform later requires a new version rather than modifying an
 older release. Asset names are the compatibility contract used by the in-app
 update checkers.
 
+The workflow also creates unsigned human-facing installers while signing
+credentials are unavailable: a DMG next to each macOS ZIP and a per-user Inno
+Setup executable next to the Windows portable ZIP. The ZIP asset names remain
+the compatibility contract used by update discovery.
+
 ## Usage
 
 - Select the eye icon in the menu bar to see the next break.

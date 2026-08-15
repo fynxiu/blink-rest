@@ -38,7 +38,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-for command_name in git xcodebuild codesign ditto lipo; do
+for command_name in git xcodebuild codesign ditto hdiutil lipo; do
     command -v "$command_name" >/dev/null 2>&1 || die "required command not found: $command_name"
 done
 [[ -x /usr/libexec/PlistBuddy ]] || die "required command not found: /usr/libexec/PlistBuddy"
@@ -85,6 +85,15 @@ build_arch() {
 
     ditto -c -k --sequesterRsrc --keepParent "$app" "$zip"
     echo "ASSET=$zip"
+
+    local dmg_stage="$WORK_DIR/dmg-$arch"
+    local dmg="$DIST_DIR/BlinkRest-$TAG-macos-$arch.dmg"
+    mkdir -p "$dmg_stage"
+    ditto "$app" "$dmg_stage/BlinkRest.app"
+    ln -s /Applications "$dmg_stage/Applications"
+    hdiutil create -quiet -volname "Blink Rest" -srcfolder "$dmg_stage" -ov -format UDZO "$dmg"
+    hdiutil verify "$dmg" >/dev/null
+    echo "ASSET=$dmg"
 }
 
 echo "Packaging Blink Rest $VERSION for macOS (build $BUILD_NUMBER)"

@@ -69,6 +69,10 @@ Authenticode status. An unsigned package is explicitly treated as a local/test
 artifact; public release signing still requires a code-signing certificate.
 The requested semantic version is also stamped into the executable's Windows
 version resource and verified before packaging.
+The same command also creates `BlinkRest-vX.Y.Z-windows-x64-setup.exe` with
+Inno Setup. It installs per-user under `%LOCALAPPDATA%\Programs\BlinkRest`,
+so elevation is not required. Until Authenticode credentials are configured,
+both the portable executable and installer are expected to remain unsigned.
 
 Production releases are orchestrated by `.github/workflows/release.yml`.
 Each `vX.Y.Z` GitHub Release may contain macOS assets, the Windows x64 asset,
