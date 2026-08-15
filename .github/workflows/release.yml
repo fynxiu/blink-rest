@@ -82,7 +82,10 @@ jobs:
   windows:
     needs: validate
     if: inputs.platforms == 'windows' || inputs.platforms == 'both'
-    runs-on: windows-latest
+    # package_release.ps1 uses the Visual Studio 17 2022 CMake generator.
+    # Pin the runner image so GitHub's moving windows-latest alias cannot
+    # select an image without a discoverable VS 2022 installation.
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@v4
         with:
