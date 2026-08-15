@@ -1,0 +1,163 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Semantic version without the v prefix
+        required: true
+        type: string
+      platforms:
+        description: Platforms to publish in this release
+        required: true
+        default: both
+        type: choice
+        options:
+          - both
+          - macos
+          - windows
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate release request
+        env:
+          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == "refs/heads/main" ]] || {
+            echo "Releases must be dispatched from main, got $GITHUB_REF" >&2
+            exit 1
+          }
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            echo "version must use X.Y.Z semantic-version form" >&2
+            exit 1
+          }
+          tag="v$VERSION"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "tag already exists: $tag" >&2
+            exit 1
+          fi
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "GitHub release already exists: $tag" >&2
+            exit 1
+          fi
+
+  macos:
+    needs: validate
+    if: inputs.platforms == 'macos' || inputs.platforms == 'both'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Package macOS
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          chmod +x scripts/package_macos_release.sh
+          scripts/package_macos_release.sh "$VERSION" "$RUNNER_TEMP/blinkrest-dist"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-macos
+          path: ${{ runner.temp }}/blinkrest-dist/*.zip
+          if-no-files-found: error
+          retention-days: 3
+
+  windows:
+    needs: validate
+    if: inputs.platforms == 'windows' || inputs.platforms == 'both'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Package Windows x64
+        shell: powershell
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dist = Join-Path $env:RUNNER_TEMP 'blinkrest-dist'
+          .\windows\tools\package_release.ps1 -Version $env:VERSION -DistDir $dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: ${{ runner.temp }}/blinkrest-dist/BlinkRest-v${{ inputs.version }}-windows-x64.zip
+          if-no-files-found: error
+          retention-days: 3
+
+  release:
+    needs:
+      - validate
+      - macos
+      - windows
+    if: >-
+      always() &&
+      needs.validate.result == 'success' &&
+      (needs.macos.result == 'success' || needs.macos.result == 'skipped') &&
+      (needs.windows.result == 'success' || needs.windows.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download macOS assets
+        if: inputs.platforms == 'macos' || inputs.platforms == 'both'
+        uses: actions/download-artifact@v4
+        with:
+          name: release-macos
+          path: dist
+      - name: Download Windows asset
+        if: inputs.platforms == 'windows' || inputs.platforms == 'both'
+        uses: actions/download-artifact@v4
+        with:
+          name: release-windows
+          path: dist
+      - name: Verify asset contract and checksums
+        env:
+          VERSION: ${{ inputs.version }}
+          PLATFORMS: ${{ inputs.platforms }}
+        run: |
+          set -euo pipefail
+          tag="v$VERSION"
+          if [[ "$PLATFORMS" == "macos" || "$PLATFORMS" == "both" ]]; then
+            test -f "dist/BlinkRest-$tag-macos-arm64.zip"
+            test -f "dist/BlinkRest-$tag-macos-x86_64.zip"
+          fi
+          if [[ "$PLATFORMS" == "windows" || "$PLATFORMS" == "both" ]]; then
+            test -f "dist/BlinkRest-$tag-windows-x64.zip"
+          fi
+          find dist -maxdepth 1 -type f -name 'BlinkRest-*.zip' -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sed 's#  dist/#  #' > dist/SHA256SUMS.txt
+          cat dist/SHA256SUMS.txt
+      - name: Create immutable GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          tag="v$VERSION"
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git tag -a "$tag" -m "Blink Rest $VERSION"
+          git push origin "$tag"
+          gh release create "$tag" dist/* \
+            --verify-tag \
+            --title "Blink Rest $VERSION" \
+            --generate-notes

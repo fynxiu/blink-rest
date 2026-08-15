@@ -5,6 +5,7 @@
 #include "settings.hpp"
 #include "startup.hpp"
 #include "tray_popover.hpp"
+#include "update_checker.hpp"
 #include "warning.hpp"
 
 #include <windows.h>
@@ -38,6 +39,7 @@ using blinkrest::Suspended;
 using blinkrest::Warning;
 
 constexpr UINT kTrayCallbackMessage = WM_APP + 1;
+constexpr UINT kUpdateCheckCompleteMessage = WM_APP + 2;
 constexpr UINT_PTR kTickTimer = 1;
 constexpr UINT_PTR kSuspensionResumeTimer = 2;
 constexpr UINT_PTR kDiagnosticQuitTimer = 3;
@@ -56,6 +58,7 @@ constexpr UINT kCommandBreak45 = 1202;
 constexpr UINT kCommandBreak60 = 1203;
 constexpr UINT kCommandBreak90 = 1204;
 constexpr UINT kCommandToggleLaunchAtLogin = 1301;
+constexpr UINT kCommandCheckForUpdates = 1302;
 constexpr UINT kCommandQuit = 1099;
 
 double monotonic_now() {
@@ -168,6 +171,9 @@ public:
         }
 
         dispatch({EventKind::launch, std::nullopt});
+        if (tray_enabled_) {
+            update_checker_.check_automatically(window_, kUpdateCheckCompleteMessage, wall_now());
+        }
         if (overlay_smoke) {
             schedule_.break_duration = 10;
             dispatch({EventKind::start_break_now, std::nullopt});
@@ -275,7 +281,18 @@ private:
         case WM_COMMAND:
             handle_command(LOWORD(wparam));
             return 0;
+        case kUpdateCheckCompleteMessage:
+            handle_update_check_result(
+                std::unique_ptr<blinkrest::win32::UpdateCheckResult>(
+                    reinterpret_cast<blinkrest::win32::UpdateCheckResult*>(lparam)
+                )
+            );
+            return 0;
         case kTrayCallbackMessage:
+            if (LOWORD(lparam) == NIN_BALLOONUSERCLICK) {
+                open_pending_update();
+                return 0;
+            }
             if (LOWORD(lparam) == WM_RBUTTONUP || LOWORD(lparam) == WM_CONTEXTMENU) {
                 if (tray_popover_) tray_popover_->hide();
                 show_tray_menu();
@@ -352,6 +369,9 @@ private:
         }
         case kCommandToggleLaunchAtLogin:
             startup_registration_.set_enabled(!startup_registration_.is_enabled());
+            break;
+        case kCommandCheckForUpdates:
+            update_checker_.check_manually(window_, kUpdateCheckCompleteMessage);
             break;
         case kCommandQuit:
             if (window_) {
@@ -671,6 +691,13 @@ private:
             L"Launch at login"
         );
         AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+        AppendMenuW(
+            menu,
+            MF_STRING | (update_checker_.is_checking() ? MF_GRAYED : 0),
+            kCommandCheckForUpdates,
+            L"Check for Updates..."
+        );
+        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
         AppendMenuW(menu, MF_STRING, kCommandQuit, L"Quit Blink Rest");
 
         POINT cursor{};
@@ -678,6 +705,65 @@ private:
         SetForegroundWindow(window_);
         TrackPopupMenu(menu, TPM_RIGHTBUTTON | TPM_BOTTOMALIGN, cursor.x, cursor.y, 0, window_, nullptr);
         DestroyMenu(menu);
+    }
+
+    void handle_update_check_result(
+        std::unique_ptr<blinkrest::win32::UpdateCheckResult> result
+    ) {
+        if (!result) return;
+        if (result->outcome == blinkrest::win32::UpdateCheckOutcome::update_available) {
+            pending_update_url_ = result->release_url;
+            const std::wstring version(result->version.begin(), result->version.end());
+            if (result->manual) {
+                const std::wstring message =
+                    L"Blink Rest " + version + L" is available.\n\nOpen the GitHub release page?";
+                SetForegroundWindow(window_);
+                if (MessageBoxW(
+                        window_, message.c_str(), L"Blink Rest Update Available",
+                        MB_YESNO | MB_ICONINFORMATION | MB_SETFOREGROUND
+                    ) == IDYES) {
+                    open_pending_update();
+                }
+            } else if (update_checker_.should_prompt_for(result->version)) {
+                update_checker_.mark_prompted(result->version);
+                show_update_balloon(version);
+            }
+            return;
+        }
+
+        if (!result->manual) return;
+        SetForegroundWindow(window_);
+        if (result->outcome == blinkrest::win32::UpdateCheckOutcome::up_to_date) {
+            MessageBoxW(
+                window_, L"Blink Rest is up to date.", L"Blink Rest",
+                MB_OK | MB_ICONINFORMATION | MB_SETFOREGROUND
+            );
+        } else {
+            MessageBoxW(
+                window_, L"Could not check for updates.", L"Blink Rest",
+                MB_OK | MB_ICONWARNING | MB_SETFOREGROUND
+            );
+        }
+    }
+
+    void show_update_balloon(const std::wstring& version) {
+        if (!tray_added_) return;
+        NOTIFYICONDATAW notification = tray_data_;
+        notification.uFlags = NIF_INFO;
+        wcscpy_s(notification.szInfoTitle, L"Blink Rest Update Available");
+        const std::wstring info =
+            L"Blink Rest " + version +
+            L" is available. Select this notification to view the release.";
+        wcscpy_s(notification.szInfo, info.c_str());
+        notification.dwInfoFlags = NIIF_INFO;
+        Shell_NotifyIconW(NIM_MODIFY, &notification);
+    }
+
+    void open_pending_update() {
+        if (pending_update_url_.empty()) return;
+        ShellExecuteW(
+            nullptr, L"open", pending_update_url_.c_str(), nullptr, nullptr, SW_SHOWNORMAL
+        );
     }
 
     void cleanup() {
@@ -715,11 +801,13 @@ private:
     std::optional<double> persisted_pause_until_;
     blinkrest::win32::RegistrySettingsStore settings_store_;
     blinkrest::win32::StartupRegistration startup_registration_;
+    blinkrest::win32::UpdateChecker update_checker_{BLINKREST_VERSION_STRING};
     IVirtualDesktopManager* virtual_desktop_manager_ = nullptr;
     std::optional<GUID> current_virtual_desktop_;
     std::unique_ptr<blinkrest::win32::OverlayManager> overlay_;
     std::unique_ptr<blinkrest::win32::TrayPopover> tray_popover_;
     std::unique_ptr<blinkrest::win32::WarningPanel> warning_;
+    std::wstring pending_update_url_;
     NOTIFYICONDATAW tray_data_{};
     UINT tick_interval_ms_ = 0;
     UINT taskbar_created_message_ = 0;

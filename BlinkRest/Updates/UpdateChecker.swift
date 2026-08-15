@@ -61,9 +61,19 @@ final class UpdateChecker: ObservableObject {
     typealias Fetcher = (URLRequest) async throws -> (Data, URLResponse)
 
     static let endpoint = URL(
-        string: "https://api.github.com/repos/fynxiu/blink-rest/releases/latest"
+        string: "https://api.github.com/repos/fynxiu/blink-rest/releases?per_page=100"
     )!
     static let automaticCheckInterval: TimeInterval = 24 * 60 * 60
+
+    static var currentAssetSuffix: String {
+#if arch(arm64)
+        "-macos-arm64.zip"
+#elseif arch(x86_64)
+        "-macos-x86_64.zip"
+#else
+        "-macos-unsupported.zip"
+#endif
+    }
 
     @Published private(set) var state: UpdateCheckState = .idle
 
@@ -72,6 +82,7 @@ final class UpdateChecker: ObservableObject {
 
     private let defaults: UserDefaults
     private let fetcher: Fetcher
+    private let compatibleAssetSuffix: String
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "com.fynxiu.BlinkRest",
         category: "updates"
@@ -82,12 +93,14 @@ final class UpdateChecker: ObservableObject {
         currentVersionString: String = Bundle.main.object(
             forInfoDictionaryKey: "CFBundleShortVersionString"
         ) as? String ?? "1.0.0",
+        compatibleAssetSuffix: String = UpdateChecker.currentAssetSuffix,
         fetcher: @escaping Fetcher = { request in
             try await URLSession.shared.data(for: request)
         }
     ) {
         self.defaults = defaults
         self.currentVersion = AppVersion(currentVersionString) ?? AppVersion("0.0.0")!
+        self.compatibleAssetSuffix = compatibleAssetSuffix
         self.fetcher = fetcher
     }
 
@@ -139,9 +152,22 @@ final class UpdateChecker: ObservableObject {
                 throw UpdateCheckFailure.invalidResponse
             }
 
-            let payload = try JSONDecoder().decode(GitHubReleasePayload.self, from: data)
-            guard let latestVersion = AppVersion(payload.tagName) else {
-                throw UpdateCheckFailure.invalidVersion
+            let payloads = try JSONDecoder().decode([GitHubReleasePayload].self, from: data)
+            let compatible = payloads.compactMap { payload -> (AppVersion, GitHubReleasePayload)? in
+                let expectedAssetName = "BlinkRest-\(payload.tagName)\(compatibleAssetSuffix)"
+                guard !payload.draft,
+                      !payload.prerelease,
+                      payload.assets.contains(where: { $0.name == expectedAssetName }),
+                      let version = AppVersion(payload.tagName) else {
+                    return nil
+                }
+                return (version, payload)
+            }.max { $0.0 < $1.0 }
+
+            guard let (latestVersion, payload) = compatible else {
+                state = .upToDate
+                logger.info("Update check completed; no compatible release is newer")
+                return
             }
 
             guard latestVersion > currentVersion else {
@@ -174,15 +200,24 @@ private struct GitHubReleasePayload: Decodable {
     let tagName: String
     let htmlURL: URL
     let body: String?
+    let draft: Bool
+    let prerelease: Bool
+    let assets: [GitHubReleaseAsset]
 
     enum CodingKeys: String, CodingKey {
         case tagName = "tag_name"
         case htmlURL = "html_url"
         case body
+        case draft
+        case prerelease
+        case assets
     }
+}
+
+private struct GitHubReleaseAsset: Decodable {
+    let name: String
 }
 
 private enum UpdateCheckFailure: Error {
     case invalidResponse
-    case invalidVersion
 }

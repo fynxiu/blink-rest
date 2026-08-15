@@ -70,6 +70,11 @@ artifact; public release signing still requires a code-signing certificate.
 The requested semantic version is also stamped into the executable's Windows
 version resource and verified before packaging.
 
+Production releases are orchestrated by `.github/workflows/release.yml`.
+Each `vX.Y.Z` GitHub Release may contain macOS assets, the Windows x64 asset,
+or both, selected explicitly at dispatch time. A published release is treated
+as immutable; a later Windows-only or macOS-only change uses a new global tag.
+
 Measure the idle Release process with:
 
     powershell -ExecutionPolicy Bypass -File tools\measure_release.ps1 \

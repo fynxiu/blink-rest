@@ -60,24 +60,25 @@ to install and launch it in one step, or `make uninstall` to remove it.
 
 ## Publishing
 
-Publishing is scripted so a normal release does not require an LLM-driven
-sequence of Git and GitHub commands. Start with a dry run:
+Publishing is dispatched through GitHub Actions so one workflow owns the tag,
+platform builds, release assets, and final checksums. Start with a dry run:
 
 ```bash
-make publish-dry-run VERSION=1.1.0
+make publish-dry-run VERSION=1.2.3 PLATFORMS=windows
 ```
 
-Then publish the same version from a clean `main` branch:
+Then publish from a clean `main` branch with the platforms that changed:
 
 ```bash
-make publish VERSION=1.1.0
+make publish VERSION=1.2.3 PLATFORMS=both
 ```
 
-The publish script validates the repository, runs the unit tests, builds and
-verifies separate arm64 and x86_64 Release apps, creates ZIPs and SHA-256
-checksums, pushes `main`, creates and pushes the annotated version tag, and
-creates the GitHub release with generated notes. The requested version is
-stamped into the release builds without rewriting the Xcode project file.
+`PLATFORMS` accepts `macos`, `windows`, or `both` and defaults to `both`.
+Versions use one global `vX.Y.Z` tag sequence, while individual platforms may
+skip versions when they have no changes. Published releases are immutable:
+adding another platform later requires a new version rather than modifying an
+older release. Asset names are the compatibility contract used by the in-app
+update checkers.
 
 ## Usage
 

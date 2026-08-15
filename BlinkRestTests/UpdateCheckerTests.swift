@@ -18,9 +18,12 @@ final class UpdateCheckerTests: XCTestCase {
             let checker = UpdateChecker(
                 defaults: defaults,
                 currentVersionString: "1.0.0",
+                compatibleAssetSuffix: "-macos-arm64.zip",
                 fetcher: { _ in
                     fetchCount += 1
-                    return try Self.releaseResponse(tag: "v1.1.0")
+                    return try Self.releaseResponse(releases: [
+                        ("v1.1.0", ["BlinkRest-v1.1.0-macos-arm64.zip"])
+                    ])
                 }
             )
             var promptedVersions: [AppVersion] = []
@@ -53,9 +56,12 @@ final class UpdateCheckerTests: XCTestCase {
             let checker = UpdateChecker(
                 defaults: defaults,
                 currentVersionString: "1.0.0",
+                compatibleAssetSuffix: "-macos-arm64.zip",
                 fetcher: { _ in
                     fetchCount += 1
-                    return try Self.releaseResponse(tag: "v1.1.0")
+                    return try Self.releaseResponse(releases: [
+                        ("v1.1.0", ["BlinkRest-v1.1.0-macos-arm64.zip"])
+                    ])
                 }
             )
 
@@ -73,9 +79,12 @@ final class UpdateCheckerTests: XCTestCase {
             let checker = UpdateChecker(
                 defaults: defaults,
                 currentVersionString: "1.0.0",
+                compatibleAssetSuffix: "-macos-arm64.zip",
                 fetcher: { _ in
                     fetchCount += 1
-                    return try Self.releaseResponse(tag: "v1.0.0")
+                    return try Self.releaseResponse(releases: [
+                        ("v1.0.0", ["BlinkRest-v1.0.0-macos-arm64.zip"])
+                    ])
                 }
             )
 
@@ -108,14 +117,67 @@ final class UpdateCheckerTests: XCTestCase {
         }
     }
 
-    private static func releaseResponse(tag: String) throws -> (Data, URLResponse) {
-        let json = """
-        {
-          "tag_name": "\(tag)",
-          "html_url": "https://github.com/fynxiu/blink-rest/releases/tag/\(tag)",
-          "body": "Release notes"
+    func testCheckSkipsNewerReleaseWithoutCompatibleAsset() async throws {
+        try await withDefaults { defaults in
+            let checker = UpdateChecker(
+                defaults: defaults,
+                currentVersionString: "1.0.0",
+                compatibleAssetSuffix: "-macos-arm64.zip",
+                fetcher: { _ in
+                    try Self.releaseResponse(releases: [
+                        ("v1.2.1", ["BlinkRest-v1.2.1-windows-x64.zip"]),
+                        ("v1.2.0", ["BlinkRest-v1.2.0-macos-arm64.zip"]),
+                        ("v1.1.0", ["BlinkRest-v1.1.0-macos-arm64.zip"])
+                    ])
+                }
+            )
+
+            await checker.checkManually()
+
+            guard case let .updateAvailable(release) = checker.state else {
+                return XCTFail("Expected updateAvailable state")
+            }
+            XCTAssertEqual(release.version, AppVersion("1.2.0"))
         }
-        """
+    }
+
+    func testCheckTreatsPlatformWithoutNewerAssetAsCurrent() async throws {
+        try await withDefaults { defaults in
+            let checker = UpdateChecker(
+                defaults: defaults,
+                currentVersionString: "1.1.0",
+                compatibleAssetSuffix: "-macos-arm64.zip",
+                fetcher: { _ in
+                    try Self.releaseResponse(releases: [
+                        ("v1.2.0", ["BlinkRest-v1.2.0-windows-x64.zip"]),
+                        ("v1.1.0", ["BlinkRest-v1.1.0-macos-arm64.zip"])
+                    ])
+                }
+            )
+
+            await checker.checkManually()
+
+            XCTAssertEqual(checker.state, .upToDate)
+        }
+    }
+
+    private static func releaseResponse(
+        releases: [(tag: String, assets: [String])]
+    ) throws -> (Data, URLResponse) {
+        let objects = releases.map { release in
+            let assets = release.assets.map { "{\"name\":\"\($0)\"}" }.joined(separator: ",")
+            return """
+            {
+              "tag_name": "\(release.tag)",
+              "html_url": "https://github.com/fynxiu/blink-rest/releases/tag/\(release.tag)",
+              "body": "Release notes",
+              "draft": false,
+              "prerelease": false,
+              "assets": [\(assets)]
+            }
+            """
+        }.joined(separator: ",")
+        let json = "[\(objects)]"
         let response = HTTPURLResponse(
             url: UpdateChecker.endpoint,
             statusCode: 200,

@@ -44,9 +44,9 @@ clean:
 		-derivedDataPath $(DERIVED_DATA) clean
 
 publish:
-	@test -n "$(VERSION)" || (echo "Usage: make publish VERSION=1.2.3" >&2; exit 2)
-	./scripts/publish.sh "$(VERSION)"
+	@test -n "$(VERSION)" || (echo "Usage: make publish VERSION=1.2.3 [PLATFORMS=macos|windows|both]" >&2; exit 2)
+	./scripts/publish.sh --platforms "$(or $(PLATFORMS),both)" "$(VERSION)"
 
 publish-dry-run:
-	@test -n "$(VERSION)" || (echo "Usage: make publish-dry-run VERSION=1.2.3" >&2; exit 2)
-	./scripts/publish.sh --dry-run "$(VERSION)"
+	@test -n "$(VERSION)" || (echo "Usage: make publish-dry-run VERSION=1.2.3 [PLATFORMS=macos|windows|both]" >&2; exit 2)
+	./scripts/publish.sh --dry-run --platforms "$(or $(PLATFORMS),both)" "$(VERSION)"
