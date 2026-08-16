@@ -76,7 +76,9 @@ final class SystemOverlayApplicationActivator: OverlayApplicationActivating {
     var isActive: Bool { NSApp.isActive }
 
     func activate() {
-        NSApp.activate()
+        _ = NSRunningApplication.current.activate(
+            options: [.activateAllWindows]
+        )
     }
 }
 
@@ -92,6 +94,7 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
     private let applicationActivator: any OverlayApplicationActivating
     private let escapeHoldController: EscapeHoldController
     private let diagnosticProbeScheduler: any OverlayDiagnosticProbeScheduling
+    private let activationRepairScheduler: any OverlayDiagnosticProbeScheduling
     private let diagnosticsEnabled: Bool
     private let presentationModel = BreakOverlayPresentationModel()
     private var windows: [UInt32: any BreakWindowManaging] = [:]
@@ -112,6 +115,7 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
             applicationActivator: SystemOverlayApplicationActivator(),
             escapeHoldController: EscapeHoldController(),
             diagnosticProbeScheduler: RunLoopOverlayDiagnosticProbeScheduler(),
+            activationRepairScheduler: RunLoopOverlayDiagnosticProbeScheduler(),
             diagnosticsEnabled: diagnosticsEnabled
         )
     }
@@ -122,6 +126,7 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
         applicationActivator: any OverlayApplicationActivating = SystemOverlayApplicationActivator(),
         escapeHoldController: EscapeHoldController,
         diagnosticProbeScheduler: any OverlayDiagnosticProbeScheduling = RunLoopOverlayDiagnosticProbeScheduler(),
+        activationRepairScheduler: any OverlayDiagnosticProbeScheduling = RunLoopOverlayDiagnosticProbeScheduler(),
         diagnosticsEnabled: Bool = false
     ) {
         self.displayProvider = displayProvider
@@ -129,6 +134,7 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
         self.applicationActivator = applicationActivator
         self.escapeHoldController = escapeHoldController
         self.diagnosticProbeScheduler = diagnosticProbeScheduler
+        self.activationRepairScheduler = activationRepairScheduler
         self.diagnosticsEnabled = diagnosticsEnabled
     }
 
@@ -148,9 +154,9 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
         presentationGeneration += 1
 
         logger.debug("Overlay presentation started")
-        // Activate before the first order-front. On macOS, ordering an accessory-app
-        // window while inactive can initially attach it only to the app's old Space
-        // even with .canJoinAllSpaces; a later Space change then repairs it.
+        // Activation is asynchronous for an accessory app. Present immediately, then
+        // repair once activation really lands so WindowServer attaches the overlay to
+        // the current Space instead of leaving it on the app's previous Space.
         applicationActivator.activate()
         logDiagnostic("present.afterActivate")
         reconcileScreens()
@@ -165,7 +171,15 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
             self?.requestSkip()
         }
         presentationModel.announceCurrentStage()
+        scheduleActivationRepairs()
         logDiagnostic("present.end")
+    }
+
+    func applicationDidBecomeActive() {
+        guard isPresented else { return }
+        logDiagnostic("activation.didBecomeActive.begin")
+        reconcileScreens()
+        logDiagnostic("activation.didBecomeActive.end")
     }
 
     func update(session: BreakSession, at now: MonotonicInstant) {
@@ -301,6 +315,34 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
                 self?.logWindowServerProbe(generation: generation, delay: delay)
             }
         }
+    }
+
+    private func scheduleActivationRepairs() {
+        guard isPresented else { return }
+        let generation = presentationGeneration
+        for delay in [0.25, 1.0] {
+            activationRepairScheduler.schedule(after: delay) { [weak self] in
+                self?.repairPresentationAfterActivation(
+                    generation: generation,
+                    delay: delay
+                )
+            }
+        }
+    }
+
+    private func repairPresentationAfterActivation(
+        generation: Int,
+        delay: TimeInterval
+    ) {
+        guard isPresented, generation == presentationGeneration else { return }
+
+        if !applicationActivator.isActive {
+            applicationActivator.activate()
+            logDiagnostic("activation.fallback.\(Int((delay * 1_000).rounded()))ms.awaitingActive")
+            return
+        }
+        logDiagnostic("activation.fallback.\(Int((delay * 1_000).rounded()))ms")
+        reconcileScreens()
     }
 
     private func logWindowServerProbe(generation: Int, delay: TimeInterval) {

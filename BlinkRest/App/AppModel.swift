@@ -76,6 +76,12 @@ final class AppModel: ObservableObject {
             }
             .store(in: &cancellables)
 
+        NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+            .sink { [weak overlayCoordinator] _ in
+                overlayCoordinator?.applicationDidBecomeActive()
+            }
+            .store(in: &cancellables)
+
         lifecycleObserver.start()
         controller.start()
 

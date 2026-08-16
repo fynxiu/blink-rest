@@ -43,6 +43,78 @@ final class OverlayWindowCoordinatorTests: XCTestCase {
         XCTAssertTrue(window.applicationWasActiveAtFirstPresent)
     }
 
+    func testDidBecomeActiveRepairsPresentationAfterAsynchronousActivation() throws {
+        let harness = makeHarness(
+            displays: [OverlayDisplay(id: 1, frame: NSRect(x: 0, y: 0, width: 1280, height: 800))],
+            activatesSynchronously: false
+        )
+
+        harness.coordinator.present(session: breakSession)
+        let window = try XCTUnwrap(harness.factory.windows[1])
+        let initialPresentCount = window.presentCount
+
+        XCTAssertFalse(window.applicationWasActiveAtFirstPresent)
+        XCTAssertFalse(harness.applicationActivator.isActive)
+
+        harness.applicationActivator.setActive(true)
+        harness.coordinator.applicationDidBecomeActive()
+
+        XCTAssertGreaterThan(window.presentCount, initialPresentCount)
+        XCTAssertTrue(window.applicationWasActiveAtLatestPresent)
+    }
+
+    func testActivationFallbackRepairsWhenActivationBecomesActiveLater() throws {
+        let harness = makeHarness(
+            displays: [OverlayDisplay(id: 1, frame: NSRect(x: 0, y: 0, width: 1280, height: 800))],
+            activatesSynchronously: false
+        )
+        harness.coordinator.present(session: breakSession)
+        let window = try XCTUnwrap(harness.factory.windows[1])
+        let initialPresentCount = window.presentCount
+
+        XCTAssertEqual(harness.activationRepairScheduler.pendingCount, 2)
+
+        harness.applicationActivator.setActive(true)
+        harness.activationRepairScheduler.fireNext()
+
+        XCTAssertGreaterThan(window.presentCount, initialPresentCount)
+        XCTAssertTrue(window.applicationWasActiveAtLatestPresent)
+    }
+
+    func testActivationFallbackDoesNotReorderWhileApplicationIsStillInactive() throws {
+        let harness = makeHarness(
+            displays: [OverlayDisplay(id: 1, frame: NSRect(x: 0, y: 0, width: 1280, height: 800))],
+            activatesSynchronously: false
+        )
+        harness.coordinator.present(session: breakSession)
+        let window = try XCTUnwrap(harness.factory.windows[1])
+        let initialPresentCount = window.presentCount
+        let initialActivateCount = harness.applicationActivator.activateCount
+
+        harness.activationRepairScheduler.fireNext()
+
+        XCTAssertEqual(window.presentCount, initialPresentCount)
+        XCTAssertEqual(harness.applicationActivator.activateCount, initialActivateCount + 1)
+        XCTAssertFalse(harness.applicationActivator.isActive)
+    }
+
+    func testActivationFallbackDoesNothingAfterDismiss() throws {
+        let harness = makeHarness(
+            displays: [OverlayDisplay(id: 1, frame: NSRect(x: 0, y: 0, width: 1280, height: 800))],
+            activatesSynchronously: false
+        )
+        harness.coordinator.present(session: breakSession)
+        let window = try XCTUnwrap(harness.factory.windows[1])
+        harness.coordinator.dismiss()
+        let presentCountAfterDismiss = window.presentCount
+
+        harness.applicationActivator.setActive(true)
+        harness.activationRepairScheduler.fireNext()
+
+        XCTAssertEqual(window.presentCount, presentCountAfterDismiss)
+        XCTAssertFalse(window.isVisible)
+    }
+
     func testDelayedDiagnosticProbeDoesNotReplaceWindow() throws {
         let harness = makeHarness(
             displays: [OverlayDisplay(id: 1, frame: NSRect(x: 0, y: 0, width: 1280, height: 800))],
@@ -149,14 +221,18 @@ final class OverlayWindowCoordinatorTests: XCTestCase {
 
     private func makeHarness(
         displays: [OverlayDisplay],
-        diagnosticsEnabled: Bool = false
+        diagnosticsEnabled: Bool = false,
+        activatesSynchronously: Bool = true
     ) -> OverlayHarness {
         let displayProvider = FakeOverlayDisplayProvider(displays: displays)
-        let applicationActivator = FakeOverlayApplicationActivator()
+        let applicationActivator = FakeOverlayApplicationActivator(
+            activatesSynchronously: activatesSynchronously
+        )
         let factory = FakeBreakWindowFactory(applicationActivator: applicationActivator)
         let scheduler = FakeOverlayEscapeScheduler()
         let eventMonitor = FakeOverlayEventMonitor()
         let diagnosticProbeScheduler = FakeOverlayDiagnosticProbeScheduler()
+        let activationRepairScheduler = FakeOverlayDiagnosticProbeScheduler()
         let escapeController = EscapeHoldController(
             holdDuration: EscapeHoldController.defaultHoldDuration,
             scheduler: scheduler,
@@ -168,6 +244,7 @@ final class OverlayWindowCoordinatorTests: XCTestCase {
             applicationActivator: applicationActivator,
             escapeHoldController: escapeController,
             diagnosticProbeScheduler: diagnosticProbeScheduler,
+            activationRepairScheduler: activationRepairScheduler,
             diagnosticsEnabled: diagnosticsEnabled
         )
         return OverlayHarness(
@@ -176,7 +253,8 @@ final class OverlayWindowCoordinatorTests: XCTestCase {
             factory: factory,
             applicationActivator: applicationActivator,
             eventMonitor: eventMonitor,
-            diagnosticProbeScheduler: diagnosticProbeScheduler
+            diagnosticProbeScheduler: diagnosticProbeScheduler,
+            activationRepairScheduler: activationRepairScheduler
         )
     }
 }
@@ -189,6 +267,7 @@ private struct OverlayHarness {
     let applicationActivator: FakeOverlayApplicationActivator
     let eventMonitor: FakeOverlayEventMonitor
     let diagnosticProbeScheduler: FakeOverlayDiagnosticProbeScheduler
+    let activationRepairScheduler: FakeOverlayDiagnosticProbeScheduler
 }
 
 @MainActor
@@ -241,6 +320,7 @@ private final class FakeBreakWindow: BreakWindowManaging {
     private(set) var dismissCount = 0
     private(set) var closeCount = 0
     private(set) var applicationWasActiveAtFirstPresent = false
+    private(set) var applicationWasActiveAtLatestPresent = false
 
     init(
         displayID: UInt32,
@@ -260,6 +340,7 @@ private final class FakeBreakWindow: BreakWindowManaging {
         if presentCount == 0 {
             applicationWasActiveAtFirstPresent = applicationActivator.isActive
         }
+        applicationWasActiveAtLatestPresent = applicationActivator.isActive
         presentCount += 1
         isVisible = true
         if makeKey {
@@ -293,10 +374,21 @@ private final class FakeBreakWindow: BreakWindowManaging {
 private final class FakeOverlayApplicationActivator: OverlayApplicationActivating {
     private(set) var isActive = false
     private(set) var activateCount = 0
+    private let activatesSynchronously: Bool
+
+    init(activatesSynchronously: Bool = true) {
+        self.activatesSynchronously = activatesSynchronously
+    }
 
     func activate() {
         activateCount += 1
-        isActive = true
+        if activatesSynchronously {
+            isActive = true
+        }
+    }
+
+    func setActive(_ isActive: Bool) {
+        self.isActive = isActive
     }
 }
 
