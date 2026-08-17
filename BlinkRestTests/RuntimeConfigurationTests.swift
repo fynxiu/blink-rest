@@ -36,4 +36,14 @@ final class RuntimeConfigurationTests: XCTestCase {
         XCTAssertNil(options.workIntervalOverride)
         XCTAssertNil(options.breakDurationOverride)
     }
+
+    func testUnitTestRuntimeIsDetectedFromXCTestEnvironment() {
+        XCTAssertTrue(AppModel.isRunningUnitTests(environment: [
+            "XCTestConfigurationFilePath": "/tmp/BlinkRest.xctestconfiguration"
+        ]))
+        XCTAssertTrue(AppModel.isRunningUnitTests(environment: [
+            "XCInjectBundleInto": "/tmp/BlinkRest.app/Contents/MacOS/BlinkRest"
+        ]))
+        XCTAssertFalse(AppModel.isRunningUnitTests(environment: [:]))
+    }
 }

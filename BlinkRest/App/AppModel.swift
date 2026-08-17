@@ -85,7 +85,7 @@ final class AppModel: ObservableObject {
         lifecycleObserver.start()
         controller.start()
 
-        if !options.isUITesting {
+        if !options.isUITesting && !Self.isRunningUnitTests() {
             Task { [weak updateChecker] in
                 await updateChecker?.checkAutomatically()
             }
@@ -135,6 +135,14 @@ final class AppModel: ObservableObject {
         defaults.removeObject(forKey: SettingsStore.Keys.legacyLaunchAtLogin)
         defaults.removeObject(forKey: UpdateChecker.Keys.lastAutomaticCheckAt)
         defaults.removeObject(forKey: UpdateChecker.Keys.lastPromptedVersion)
+    }
+
+    nonisolated static func isRunningUnitTests(
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> Bool {
+        environment["XCTestConfigurationFilePath"] != nil
+            || environment["XCTestBundlePath"] != nil
+            || environment["XCInjectBundleInto"] != nil
     }
 
     private static func presentUpdateAlert(
