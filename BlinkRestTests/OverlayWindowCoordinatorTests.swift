@@ -31,6 +31,24 @@ final class OverlayWindowCoordinatorTests: XCTestCase {
         XCTAssertEqual(window.presentCount, previousPresentCount + 1)
     }
 
+    func testReconcileRecreatesVisibleWindowThatLostActiveSpaceMembership() throws {
+        let harness = makeHarness(displays: [
+            OverlayDisplay(id: 1, frame: NSRect(x: 0, y: 0, width: 1280, height: 800))
+        ])
+        harness.coordinator.present(session: breakSession)
+        let original = try XCTUnwrap(harness.factory.windows[1])
+        original.isOnActiveSpace = false
+
+        harness.coordinator.reconcileScreens()
+
+        let replacement = try XCTUnwrap(harness.factory.windows[1])
+        XCTAssertFalse(original === replacement)
+        XCTAssertEqual(original.closeCount, 1)
+        XCTAssertEqual(harness.factory.makeCount, 2)
+        XCTAssertTrue(replacement.isVisible)
+        XCTAssertTrue(replacement.isKeyWindow)
+    }
+
     func testPresentActivatesApplicationBeforeOrderingFirstWindow() throws {
         let harness = makeHarness(displays: [
             OverlayDisplay(id: 1, frame: NSRect(x: 0, y: 0, width: 1280, height: 800))
@@ -315,6 +333,7 @@ private final class FakeBreakWindow: BreakWindowManaging {
     private(set) var frame: NSRect
     private(set) var isVisible = false
     private(set) var isKeyWindow = false
+    var isOnActiveSpace = true
     var windowServerOnscreen = true
     private(set) var presentCount = 0
     private(set) var dismissCount = 0

@@ -9,6 +9,7 @@ protocol BreakWindowManaging: AnyObject {
     var frame: NSRect { get }
     var isVisible: Bool { get }
     var isKeyWindow: Bool { get }
+    var isOnActiveSpace: Bool { get }
 
     func updateFrame(_ frame: NSRect)
     func present(makeKey: Bool)

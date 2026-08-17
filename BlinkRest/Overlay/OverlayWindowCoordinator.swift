@@ -228,6 +228,17 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
         for display in displays {
             if let window = windows[display.id] {
                 window.updateFrame(display.frame)
+                if isPresented, window.isVisible, !window.isOnActiveSpace {
+                    logger.notice(
+                        "Recreating overlay window for display \(display.id, privacy: .public) after losing active Space membership"
+                    )
+                    let replacement = windowFactory.makeWindow(
+                        for: display,
+                        rootView: makeRootView()
+                    )
+                    windows[display.id] = replacement
+                    window.closePermanently()
+                }
             } else if isPresented {
                 let window = windowFactory.makeWindow(
                     for: display,
