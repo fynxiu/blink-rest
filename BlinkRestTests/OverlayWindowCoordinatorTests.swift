@@ -49,6 +49,25 @@ final class OverlayWindowCoordinatorTests: XCTestCase {
         XCTAssertTrue(replacement.isKeyWindow)
     }
 
+    func testNewPresentationRecreatesCachedHiddenWindowThatIsOffActiveSpace() throws {
+        let harness = makeHarness(displays: [
+            OverlayDisplay(id: 1, frame: NSRect(x: 0, y: 0, width: 1280, height: 800))
+        ])
+        harness.coordinator.present(session: breakSession)
+        let original = try XCTUnwrap(harness.factory.windows[1])
+
+        harness.coordinator.dismiss()
+        original.isOnActiveSpace = false
+        harness.coordinator.present(session: breakSession)
+
+        let replacement = try XCTUnwrap(harness.factory.windows[1])
+        XCTAssertFalse(original === replacement)
+        XCTAssertEqual(original.closeCount, 1)
+        XCTAssertEqual(harness.factory.makeCount, 2)
+        XCTAssertTrue(replacement.isVisible)
+        XCTAssertTrue(replacement.isKeyWindow)
+    }
+
     func testPresentActivatesApplicationBeforeOrderingFirstWindow() throws {
         let harness = makeHarness(displays: [
             OverlayDisplay(id: 1, frame: NSRect(x: 0, y: 0, width: 1280, height: 800))

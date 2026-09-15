@@ -228,17 +228,6 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
         for display in displays {
             if let window = windows[display.id] {
                 window.updateFrame(display.frame)
-                if isPresented, window.isVisible, !window.isOnActiveSpace {
-                    logger.notice(
-                        "Recreating overlay window for display \(display.id, privacy: .public) after losing active Space membership"
-                    )
-                    let replacement = windowFactory.makeWindow(
-                        for: display,
-                        rootView: makeRootView()
-                    )
-                    windows[display.id] = replacement
-                    window.closePermanently()
-                }
             } else if isPresented {
                 let window = windowFactory.makeWindow(
                     for: display,
@@ -249,6 +238,7 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
 
             if isPresented {
                 windows[display.id]?.present(makeKey: false)
+                recreateWindowIfNeededAfterPresentation(for: display)
             }
         }
 
@@ -267,6 +257,23 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
         )
         logDiagnostic("reconcile.end")
         scheduleDiagnosticProbes()
+    }
+
+    private func recreateWindowIfNeededAfterPresentation(for display: OverlayDisplay) {
+        guard let window = windows[display.id],
+              window.isVisible,
+              !window.isOnActiveSpace else { return }
+
+        logger.notice(
+            "Recreating overlay window for display \(display.id, privacy: .public) after losing active Space membership"
+        )
+        let replacement = windowFactory.makeWindow(
+            for: display,
+            rootView: makeRootView()
+        )
+        windows[display.id] = replacement
+        window.closePermanently()
+        replacement.present(makeKey: false)
     }
 
     func cancelEscapeHold() {
