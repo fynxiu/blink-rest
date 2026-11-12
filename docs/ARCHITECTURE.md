@@ -46,3 +46,19 @@ warning presentation, overlay presentation, frontmost app management, display
 topology, window construction, and login-item control. Unit tests use fakes and
 advance time without real sleeps. UI tests use debug-only launch arguments and
 a supported 10-second break plan.
+
+
+## Linux backend
+
+The Linux target in linux/ links the existing portable C++23 state machine from
+windows/src/core.cpp and windows/include/blinkrest/core.hpp; it does not call
+Win32 APIs. Qt6 Widgets handles the tray, fallback status window and one
+fullscreen break window per QScreen; Qt6 D-Bus observes logind sleep and
+desktop screen-saver lock signals when exposed. QSettings persists user
+preferences in XDG config, and a user-owned XDG autostart desktop entry handles
+login start. Linux packaging uses CMake, CPack and the GitHub Actions Linux
+matrix for amd64 and arm64.
+
+X11 and Wayland are different presentation environments. Wayland compositors
+may not honor ordinary topmost hints over other fullscreen surfaces. This is a
+documented limitation rather than a reason to request privileged input hooks.

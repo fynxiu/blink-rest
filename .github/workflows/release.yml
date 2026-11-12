@@ -10,12 +10,14 @@ on:
       platforms:
         description: Platforms to publish in this release
         required: true
-        default: both
+        default: all
         type: choice
         options:
+          - all
           - both
           - macos
           - windows
+          - linux
 
 permissions:
   contents: write
@@ -57,7 +59,7 @@ jobs:
 
   macos:
     needs: validate
-    if: inputs.platforms == 'macos' || inputs.platforms == 'both'
+    if: inputs.platforms == 'macos' || inputs.platforms == 'both' || inputs.platforms == 'all'
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -81,7 +83,7 @@ jobs:
 
   windows:
     needs: validate
-    if: inputs.platforms == 'windows' || inputs.platforms == 'both'
+    if: inputs.platforms == 'windows' || inputs.platforms == 'both' || inputs.platforms == 'all'
     # package_release.ps1 uses the Visual Studio 17 2022 CMake generator.
     # Pin the runner image so GitHub's moving windows-latest alias cannot
     # select an image without a discoverable VS 2022 installation.
@@ -110,32 +112,75 @@ jobs:
           if-no-files-found: error
           retention-days: 3
 
+  linux:
+    needs: validate
+    if: inputs.platforms == 'linux' || inputs.platforms == 'all'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build qt6-base-dev dpkg-dev file
+      - name: Package Linux
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          linux/tools/package_release.sh "$VERSION" "$RUNNER_TEMP/blinkrest-dist"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux-${{ matrix.arch }}
+          path: |
+            ${{ runner.temp }}/blinkrest-dist/BlinkRest-v${{ inputs.version }}-linux-${{ matrix.arch }}.deb
+            ${{ runner.temp }}/blinkrest-dist/BlinkRest-v${{ inputs.version }}-linux-${{ matrix.arch }}.tar.gz
+          if-no-files-found: error
+          retention-days: 3
+
   release:
     needs:
       - validate
       - macos
       - windows
+      - linux
     if: >-
       always() &&
       needs.validate.result == 'success' &&
       (needs.macos.result == 'success' || needs.macos.result == 'skipped') &&
-      (needs.windows.result == 'success' || needs.windows.result == 'skipped')
+      (needs.windows.result == 'success' || needs.windows.result == 'skipped') &&
+      (needs.linux.result == 'success' || needs.linux.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Download macOS assets
-        if: inputs.platforms == 'macos' || inputs.platforms == 'both'
+        if: inputs.platforms == 'macos' || inputs.platforms == 'both' || inputs.platforms == 'all'
         uses: actions/download-artifact@v4
         with:
           name: release-macos
           path: dist
       - name: Download Windows asset
-        if: inputs.platforms == 'windows' || inputs.platforms == 'both'
+        if: inputs.platforms == 'windows' || inputs.platforms == 'both' || inputs.platforms == 'all'
         uses: actions/download-artifact@v4
         with:
           name: release-windows
+          path: dist
+      - name: Download Linux assets
+        if: inputs.platforms == 'linux' || inputs.platforms == 'all'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-linux-*
+          merge-multiple: true
           path: dist
       - name: Verify asset contract and checksums
         env:
@@ -144,17 +189,23 @@ jobs:
         run: |
           set -euo pipefail
           tag="v$VERSION"
-          if [[ "$PLATFORMS" == "macos" || "$PLATFORMS" == "both" ]]; then
+          if [[ "$PLATFORMS" == "macos" || "$PLATFORMS" == "both" || "$PLATFORMS" == "all" ]]; then
             test -f "dist/BlinkRest-$tag-macos-arm64.zip"
             test -f "dist/BlinkRest-$tag-macos-x86_64.zip"
             test -f "dist/BlinkRest-$tag-macos-arm64.dmg"
             test -f "dist/BlinkRest-$tag-macos-x86_64.dmg"
           fi
-          if [[ "$PLATFORMS" == "windows" || "$PLATFORMS" == "both" ]]; then
+          if [[ "$PLATFORMS" == "windows" || "$PLATFORMS" == "both" || "$PLATFORMS" == "all" ]]; then
             test -f "dist/BlinkRest-$tag-windows-x64.zip"
             test -f "dist/BlinkRest-$tag-windows-x64-setup.exe"
           fi
-          find dist -maxdepth 1 -type f \( -name 'BlinkRest-*.zip' -o -name 'BlinkRest-*.dmg' -o -name 'BlinkRest-*-setup.exe' \) -print0 \
+          if [[ "$PLATFORMS" == "linux" || "$PLATFORMS" == "all" ]]; then
+            for arch in amd64 arm64; do
+              test -f "dist/BlinkRest-$tag-linux-$arch.deb"
+              test -f "dist/BlinkRest-$tag-linux-$arch.tar.gz"
+            done
+          fi
+          find dist -maxdepth 1 -type f \( -name 'BlinkRest-*.zip' -o -name 'BlinkRest-*.dmg' -o -name 'BlinkRest-*-setup.exe' -o -name 'BlinkRest-*.tar.gz' -o -name 'BlinkRest-*.deb' \) -print0 \
             | sort -z \
             | xargs -0 sha256sum \
             | sed 's#  dist/#  #' > dist/SHA256SUMS.txt

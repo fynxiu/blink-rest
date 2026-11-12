@@ -1,0 +1,49 @@
+name: Linux CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'linux/**'
+      - 'windows/include/blinkrest/core.hpp'
+      - 'windows/src/core.cpp'
+      - 'windows/tests/core_tests.cpp'
+      - '.github/workflows/linux.yml'
+  pull_request:
+    paths:
+      - 'linux/**'
+      - 'windows/include/blinkrest/core.hpp'
+      - 'windows/src/core.cpp'
+      - 'windows/tests/core_tests.cpp'
+      - '.github/workflows/linux.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build qt6-base-dev dpkg-dev file
+      - name: Build and test
+        run: |
+          cmake -S linux -B build/linux -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/linux --parallel 2
+          ctest --test-dir build/linux --output-on-failure
+      - name: Exercise Linux packaging
+        run: linux/tools/package_release.sh 0.0.0 "$RUNNER_TEMP/blinkrest-dist"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-ci-${{ matrix.arch }}
+          path: ${{ runner.temp }}/blinkrest-dist/BlinkRest-v0.0.0-linux-${{ matrix.arch }}.*
+          retention-days: 3

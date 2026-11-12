@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Blink Rest
+GenericName=Eye break reminder
+Comment=Gentle periodic reminders to rest your eyes
+Exec=blinkrest
+Icon=blinkrest
+Terminal=false
+Categories=Utility;
+StartupNotify=false

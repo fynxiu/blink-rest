@@ -1,5 +1,5 @@
 # Cross-platform behavior contract
-Blink Rest has separate native macOS and Windows implementations. Behavioral
+Blink Rest has separate macOS, Windows and Linux desktop implementations. Behavioral
 consistency comes from matching this state-machine contract, not from sharing a
 cross-platform UI framework.
 
@@ -50,8 +50,11 @@ The state machine emits presentation effects but does not own native windows.
 Each platform maps those effects to its own supported system APIs.
 
 macOS maps presentation-context changes from Spaces and display topology.
-Windows will map the same logical event from display topology and the supported
+Windows maps the same logical event from display topology and the supported
 signals available around virtual-desktop and foreground-context changes.
+Linux reuses the C++23 Windows reducer, with Qt mapping monitor topology and
+ordinary D-Bus sleep/lock signals to the same events. Overlay stacking on
+Wayland is compositor-governed and cannot be guaranteed.
 
 During a break, a presentation-context or display change asks the native window
 coordinator to reconcile the overlay set idempotently.
