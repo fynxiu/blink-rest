@@ -1,14 +1,25 @@
 # Blink Rest
 
-Blink Rest is a small native macOS menu bar app that periodically covers every
-connected display with a quiet eye-break prompt. The default schedule is a
+Blink Rest is a small desktop eye-break reminder for macOS, Windows and Linux.
+It periodically covers connected displays with a quiet eye-break prompt. The default schedule is a
 30-second break after 20 minutes of active-session time.
 
-The app has no account, analytics, network client, or third-party dependencies.
+The app has no account or analytics. The macOS and Windows versions use
+native desktop APIs; the Linux version depends on Qt6 system libraries.
 It does not inspect screen contents or request Accessibility, Input Monitoring,
 Screen Recording, camera, or microphone permission.
 
 ## Install and open
+
+**Linux:** install the matching amd64 or arm64 Debian package from the
+[latest release](https://github.com/fynxiu/blink-rest/releases/latest).
+Start Blink Rest from your application menu or the terminal. See the
+[Linux guide](linux/README.md) for installation, build instructions, runtime
+requirements and Wayland restrictions.
+
+**Windows:** see the [Windows guide](windows/README.md).
+
+**macOS:**
 
 For normal users, see the **[Blink Rest User Guide](docs/USER_GUIDE.md)**.
 
@@ -27,10 +38,14 @@ utilities; when visible, Command-drag the Blink Rest icon farther to the right.
 
 ## Requirements
 
-- macOS 14 or later
+- For the macOS app: macOS 14 or later
 - Xcode 26 or another Xcode release capable of building for macOS 14
 
 ## Build and test from source
+
+The following commands build **macOS**. For Linux, use the
+[Linux build and test instructions](linux/README.md); for Windows, see
+[Windows build instructions](windows/README.md).
 
 ```bash
 xcodebuild -project BlinkRest.xcodeproj -scheme BlinkRest \
@@ -64,16 +79,17 @@ Publishing is dispatched through GitHub Actions so one workflow owns the tag,
 platform builds, release assets, and final checksums. Start with a dry run:
 
 ```bash
-make publish-dry-run VERSION=1.2.3 PLATFORMS=windows
+make publish-dry-run VERSION=1.2.3 PLATFORMS=linux
 ```
 
 Then publish from a clean `main` branch with the platforms that changed:
 
 ```bash
-make publish VERSION=1.2.3 PLATFORMS=both
+make publish VERSION=1.2.3 PLATFORMS=all
 ```
 
-`PLATFORMS` accepts `macos`, `windows`, or `both` and defaults to `both`.
+PLATFORMS accepts **macos**, **windows**, **linux**, **all** (all three),
+or **both** (legacy macOS + Windows). It defaults to **all**.
 Versions use one global `vX.Y.Z` tag sequence, while individual platforms may
 skip versions when they have no changes. Published releases are immutable:
 adding another platform later requires a new version rather than modifying an
@@ -82,10 +98,14 @@ update checkers.
 
 The workflow also creates unsigned human-facing installers while signing
 credentials are unavailable: a DMG next to each macOS ZIP and a per-user Inno
-Setup executable next to the Windows portable ZIP. The ZIP asset names remain
+Setup executable next to the Windows portable ZIP. Linux releases include .deb packages and
+unbundled .tar.gz archives for amd64 and arm64. The ZIP asset names remain
 the compatibility contract used by update discovery.
 
 ## Usage
+
+The following describes **macOS**. Linux offers equivalent controls in the
+system tray or a fallback status window; see the Linux guide.
 
 - Select the eye icon in the menu bar to see the next break.
 - Choose **Take a break now** to start immediately.

@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
     cat <<'EOF'
-Usage: scripts/publish.sh [--dry-run] [--platforms macos|windows|both] VERSION
+Usage: scripts/publish.sh [--dry-run] [--platforms macos|windows|linux|both|all] VERSION
 
 Examples:
   scripts/publish.sh 1.2.4
@@ -24,7 +24,7 @@ die() {
 
 DRY_RUN=0
 VERSION=""
-PLATFORMS="both"
+PLATFORMS="all"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -33,7 +33,7 @@ while [[ $# -gt 0 ]]; do
             ;;
         --platforms)
             shift
-            [[ $# -gt 0 ]] || die "--platforms requires macos, windows, or both"
+            [[ $# -gt 0 ]] || die "--platforms requires macos, windows, linux, both, or all"
             PLATFORMS="$1"
             ;;
         -h|--help)
@@ -54,8 +54,8 @@ done
 }
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "VERSION must use X.Y.Z semantic-version form"
 case "$PLATFORMS" in
-    macos|windows|both) ;;
-    *) die "--platforms must be macos, windows, or both" ;;
+    macos|windows|linux|both|all) ;;
+    *) die "--platforms must be macos, windows, linux, both, or all" ;;
 esac
 
 TAG="v$VERSION"
