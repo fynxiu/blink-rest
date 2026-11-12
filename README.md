@@ -98,8 +98,9 @@ update checkers.
 
 The workflow also creates unsigned human-facing installers while signing
 credentials are unavailable: a DMG next to each macOS ZIP and a per-user Inno
-Setup executable next to the Windows portable ZIP. Linux releases include .deb packages and
-unbundled .tar.gz archives for amd64 and arm64. The ZIP asset names remain
+Setup executable next to the Windows portable ZIP. Linux releases include .deb packages and unbundled .tar.gz archives for
+amd64 and arm64. Linux Debian packages are built against Ubuntu 22.04 to
+support both Ubuntu 22.04 and 24.04. The ZIP asset names remain
 the compatibility contract used by update discovery.
 
 ## Usage
