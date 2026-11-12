@@ -2,6 +2,7 @@
 
 #include <blinkrest/core.hpp>
 
+#include <QElapsedTimer>
 #include <QHash>
 #include <QPointer>
 #include <QTimer>
@@ -10,11 +11,13 @@
 #include <functional>
 
 class QLabel;
-class QProgressBar;
 class QPushButton;
 class QScreen;
 
 namespace blinkrest::linux_ui {
+
+class EyeProgressRing;
+class HoldProgressRing;
 
 class BreakOverlay final : public QWidget {
 public:
@@ -29,6 +32,7 @@ protected:
     void keyReleaseEvent(QKeyEvent* event) override;
     void focusOutEvent(QFocusEvent* event) override;
     void closeEvent(QCloseEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
@@ -40,10 +44,14 @@ private:
     BreakSession session_{};
     QLabel* stage_ = nullptr;
     QLabel* detail_ = nullptr;
-    QLabel* remaining_ = nullptr;
-    QProgressBar* progress_ = nullptr;
+    EyeProgressRing* ring_ = nullptr;
+    QWidget* skip_panel_ = nullptr;
     QPushButton* skip_ = nullptr;
+    HoldProgressRing* keyboard_progress_ = nullptr;
+    HoldProgressRing* pointer_progress_ = nullptr;
     QTimer hold_timer_;
+    QTimer animation_timer_;
+    QElapsedTimer hold_clock_;
     bool key_held_ = false;
     bool button_held_ = false;
 };

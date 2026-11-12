@@ -4,7 +4,8 @@
 #include <QActionGroup>
 #include <QApplication>
 #include <QCheckBox>
-#include <QComboBox>
+#include <QButtonGroup>
+#include <QCursor>
 #include <QDBusConnection>
 #include <QDir>
 #include <QEvent>
@@ -12,12 +13,12 @@
 #include <QUrl>
 #include <QGuiApplication>
 #include <QHBoxLayout>
+#include <QGroupBox>
 #include <QIcon>
 #include <QLabel>
 #include <QMessageBox>
 #include <QPainter>
 #include <QPainterPath>
-#include <QProgressBar>
 #include <QPushButton>
 #include <QScreen>
 #include <QSignalBlocker>
@@ -185,12 +186,35 @@ QIcon AppHost::eye_icon() {
 }
 
 void AppHost::initialize_ui() {
-    tray_.setIcon(QIcon::fromTheme("view-visible", eye_icon()));
+    popover_ = std::make_unique<TrayPopover>(
+        [this] { dispatch(make_event(EventKind::start_break_now)); },
+        [this](int duration) { dispatch(SessionEvent::pause(wall_now() + duration)); },
+        [this] { dispatch(make_event(EventKind::resume)); },
+        [this] { show_settings(); },
+        [] { QApplication::quit(); });
+    popover_->setWindowIcon(eye_icon());
+    tray_.setIcon(eye_icon());
     tray_.setToolTip("Blink Rest");
     initialize_menu();
     tray_.setContextMenu(&menu_);
+    connect(&tray_, &QSystemTrayIcon::activated, this,
+            [this](QSystemTrayIcon::ActivationReason reason) {
+        // Normal click opens the same countdown popover as macOS and Windows.
+        // Right-click continues to expose quick settings through QMenu.
+        if (reason == QSystemTrayIcon::Trigger && popover_) {
+            update_ui();
+            popover_->show_at(QCursor::pos());
+        }
+    });
     tray_.show();
     initialize_control_window();
+}
+
+void AppHost::show_settings() {
+    if (!control_window_) return;
+    control_window_->show();
+    control_window_->raise();
+    control_window_->activateWindow();
 }
 
 void AppHost::initialize_menu() {
@@ -240,12 +264,8 @@ void AppHost::initialize_menu() {
         toggle_autostart(enabled);
     });
 
-    show_window_ = menu_.addAction("Show status and settings");
-    connect(show_window_, &QAction::triggered, this, [this] {
-        control_window_->show();
-        control_window_->raise();
-        control_window_->activateWindow();
-    });
+    show_window_ = menu_.addAction("Settings");
+    connect(show_window_, &QAction::triggered, this, [this] { show_settings(); });
     auto* releases = menu_.addAction("View latest releases");
     connect(releases, &QAction::triggered, this, [] {
         QDesktopServices::openUrl(QUrl("https://github.com/fynxiu/blink-rest/releases/latest"));
@@ -258,75 +278,114 @@ void AppHost::initialize_menu() {
 
 void AppHost::initialize_control_window() {
     control_window_ = new QWidget(nullptr, Qt::Window);
-    control_window_->setWindowTitle("Blink Rest");
+    control_window_->setObjectName("settingsWindow");
+    control_window_->setWindowTitle("Blink Rest — Settings");
     control_window_->setWindowIcon(eye_icon());
-    control_window_->setMinimumWidth(360);
+    control_window_->setMinimumWidth(480);
+    control_window_->resize(500, 415);
     control_window_->setAttribute(Qt::WA_DeleteOnClose, false);
-    control_window_->installEventFilter(this);
+    control_window_->setStyleSheet(
+        "QWidget#settingsWindow { background: #F5F5F7; }"
+        "QGroupBox { border: 1px solid #E0E0E5; border-radius: 12px;"
+        " background: white; margin-top: 14px; padding-top: 12px;"
+        " font-weight: 600; color: #333333; }"
+        "QGroupBox::title { subcontrol-origin: margin; left: 12px;"
+        " padding: 0 5px; background: #F5F5F7; }"
+        "QPushButton#segmentedChoice { background: #F1F1F3; color: #333333;"
+        " border: 1px solid #D9DAE0; padding: 8px; min-height: 18px; }"
+        "QPushButton#segmentedChoice:checked { background: #0078D7;"
+        " color: white; border-color: #0078D7; font-weight: 600; }"
+        "QPushButton#segmentedChoice:focus { border: 2px solid #77A9FF; }"
+        "QCheckBox { color: #292929; }");
 
-    auto* layout = new QVBoxLayout(control_window_);
-    layout->setContentsMargins(28, 28, 28, 28);
-    layout->setSpacing(14);
-    auto* heading = new QLabel("Blink Rest", control_window_);
-    QFont title = heading->font();
-    title.setPointSize(20);
-    title.setBold(true);
-    heading->setFont(title);
-    layout->addWidget(heading);
+    auto* root = new QVBoxLayout(control_window_);
+    root->setContentsMargins(24, 20, 24, 20);
+    root->setSpacing(12);
 
-    status_label_ = new QLabel(control_window_);
-    status_label_->setWordWrap(true);
-    layout->addWidget(status_label_);
+    auto* header = new QLabel("Blink Rest", control_window_);
+    QFont heading_font = header->font();
+    heading_font.setPixelSize(23);
+    heading_font.setWeight(QFont::DemiBold);
+    header->setFont(heading_font);
+    root->addWidget(header);
 
-    control_break_ = new QPushButton("Take a break now", control_window_);
-    connect(control_break_, &QPushButton::clicked, this, [this] {
-        dispatch(make_event(EventKind::start_break_now));
+    auto* schedule = new QGroupBox("Schedule", control_window_);
+    auto* schedule_layout = new QVBoxLayout(schedule);
+    schedule_layout->setContentsMargins(16, 20, 16, 16);
+    schedule_layout->setSpacing(10);
+
+    const auto make_segmented = [schedule](const std::vector<int>& values,
+                                          const QString& unit, QButtonGroup*& group) {
+        auto* container = new QWidget(schedule);
+        auto* row = new QHBoxLayout(container);
+        row->setContentsMargins(0, 0, 0, 0);
+        row->setSpacing(0);
+        group = new QButtonGroup(container);
+        group->setExclusive(true);
+        for (int value : values) {
+            auto* button = new QPushButton(QString("%1 %2").arg(value).arg(unit), container);
+            button->setObjectName("segmentedChoice");
+            button->setCheckable(true);
+            button->setCursor(Qt::PointingHandCursor);
+            button->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+            button->setAccessibleName(QString("%1 %2").arg(value).arg(unit));
+            group->addButton(button, value);
+            row->addWidget(button);
+        }
+        return container;
+    };
+
+    schedule_layout->addWidget(new QLabel("Work interval", schedule));
+    schedule_layout->addWidget(make_segmented({20, 25, 30, 40}, "min", work_buttons_));
+    schedule_layout->addWidget(new QLabel("Break duration", schedule));
+    schedule_layout->addWidget(make_segmented({30, 45, 60, 90}, "sec", duration_buttons_));
+
+    connect(work_buttons_, &QButtonGroup::idClicked, this, [this](int minutes) {
+        set_work_minutes(minutes);
     });
-    layout->addWidget(control_break_);
-
-    auto* pause = new QPushButton("Pause for 30 minutes", control_window_);
-    connect(pause, &QPushButton::clicked, this, [this] {
-        dispatch(SessionEvent::pause(wall_now() + 1800));
+    connect(duration_buttons_, &QButtonGroup::idClicked, this, [this](int seconds) {
+        set_break_seconds(seconds);
     });
-    layout->addWidget(pause);
 
-    control_resume_ = new QPushButton("Resume reminders", control_window_);
-    connect(control_resume_, &QPushButton::clicked, this, [this] {
-        dispatch(make_event(EventKind::resume));
+    auto* hint = new QLabel(
+        "Work interval changes restart the current cycle. "
+        "Break duration changes apply to the next break.", schedule);
+    hint->setWordWrap(true);
+    hint->setStyleSheet("color: #727272; font-size: 12px;");
+    schedule_layout->addWidget(hint);
+    root->addWidget(schedule);
+
+    auto* updates = new QGroupBox("Updates", control_window_);
+    auto* updates_layout = new QHBoxLayout(updates);
+    updates_layout->setContentsMargins(16, 20, 16, 12);
+    auto* version = new QLabel(QString("Version %1").arg(BLINKREST_VERSION_STRING), updates);
+    version->setStyleSheet("color: #565656;");
+    updates_layout->addWidget(version);
+    updates_layout->addStretch(1);
+    auto* latest = new QPushButton("View latest release…", updates);
+    connect(latest, &QPushButton::clicked, this, [] {
+        QDesktopServices::openUrl(QUrl("https://github.com/fynxiu/blink-rest/releases/latest"));
     });
-    layout->addWidget(control_resume_);
+    updates_layout->addWidget(latest);
+    root->addWidget(updates);
 
-    auto* work_row = new QHBoxLayout();
-    work_row->addWidget(new QLabel("Work interval", control_window_));
-    control_work_ = new QComboBox(control_window_);
-    for (int minutes : {20, 25, 30, 40})
-        control_work_->addItem(QString("%1 minutes").arg(minutes), minutes);
-    connect(control_work_, &QComboBox::currentIndexChanged, this, [this](int index) {
-        set_work_minutes(control_work_->itemData(index).toInt());
-    });
-    work_row->addWidget(control_work_);
-    layout->addLayout(work_row);
-
-    auto* rest_row = new QHBoxLayout();
-    rest_row->addWidget(new QLabel("Break duration", control_window_));
-    control_duration_ = new QComboBox(control_window_);
-    for (int seconds : {30, 45, 60, 90})
-        control_duration_->addItem(QString("%1 seconds").arg(seconds), seconds);
-    connect(control_duration_, &QComboBox::currentIndexChanged, this, [this](int index) {
-        set_break_seconds(control_duration_->itemData(index).toInt());
-    });
-    rest_row->addWidget(control_duration_);
-    layout->addLayout(rest_row);
-
-    control_autostart_ = new QCheckBox("Launch at login", control_window_);
+    auto* system = new QGroupBox("System", control_window_);
+    auto* system_layout = new QVBoxLayout(system);
+    system_layout->setContentsMargins(16, 20, 16, 14);
+    control_autostart_ = new QCheckBox("Launch at login", system);
     connect(control_autostart_, &QCheckBox::toggled, this, [this](bool enabled) {
         toggle_autostart(enabled);
     });
-    layout->addWidget(control_autostart_);
+    system_layout->addWidget(control_autostart_);
+    root->addWidget(system);
 
-    auto* exit = new QPushButton("Quit", control_window_);
-    connect(exit, &QPushButton::clicked, qApp, &QCoreApplication::quit);
-    layout->addWidget(exit);
+    auto* privacy = new QLabel(
+        "No analytics. No account. View latest release opens GitHub in your browser.",
+        control_window_);
+    privacy->setWordWrap(true);
+    privacy->setStyleSheet("color: #727272; font-size: 12px;");
+    root->addWidget(privacy);
+    root->addStretch(1);
 }
 
 void AppHost::initialize_lifecycle() {
@@ -347,14 +406,6 @@ void AppHost::initialize_lifecycle() {
         this, SLOT(on_screen_saver_active(bool)));
 }
 
-bool AppHost::eventFilter(QObject* watched, QEvent* observed) {
-    if (watched == control_window_ && observed->type() == QEvent::Close &&
-        !QSystemTrayIcon::isSystemTrayAvailable()) {
-        QCoreApplication::quit();
-    }
-    return QObject::eventFilter(watched, observed);
-}
-
 void AppHost::toggle_autostart(bool enabled) {
     QString error;
     if (!settings_.set_autostart(enabled, &error)) {
@@ -366,11 +417,14 @@ void AppHost::toggle_autostart(bool enabled) {
 void AppHost::check_tray_availability() {
     const bool has_tray = QSystemTrayIcon::isSystemTrayAvailable();
     if (has_tray && !tray_.isVisible()) tray_.show();
-    if (!has_tray && !control_window_->isVisible()) {
-        control_window_->show();
+
+    // GNOME Shell and some Wayland environments do not expose a tray host.
+    // The same countdown design remains available as a standalone window.
+    if (!has_tray && popover_ && !popover_->isVisible()) {
+        popover_->show_standalone();
         shown_as_fallback_ = true;
     } else if (has_tray && shown_as_fallback_) {
-        control_window_->hide();
+        popover_->hide();
         shown_as_fallback_ = false;
     }
 }
@@ -393,26 +447,55 @@ void AppHost::update_ui() {
     const bool paused = std::holds_alternative<Paused>(state_);
     const bool breaking = std::holds_alternative<Breaking>(state_);
     const bool suspended = std::holds_alternative<Suspended>(state_);
-    const auto message = status_text();
-    tray_.setToolTip("Blink Rest · " + message);
-    if (status_label_) status_label_->setText(message);
+    tray_.setToolTip("Blink Rest · " + status_text());
+
+    if (popover_) {
+        PopoverPresentation presentation;
+        const double mono = monotonic_now();
+        const double wall = wall_now();
+        const double work = std::max(1.0, schedule_.effective_work_interval());
+        if (const auto* running = std::get_if<Running>(&state_)) {
+            presentation.phase = PopoverPhase::running;
+            presentation.remaining_seconds = static_cast<int>(
+                std::ceil(std::max(0.0, running->deadline - mono)));
+            presentation.progress = std::clamp(
+                1.0 - (running->deadline - mono) / work, 0.0, 1.0);
+        } else if (const auto* warning = std::get_if<Warning>(&state_)) {
+            presentation.phase = PopoverPhase::warning;
+            presentation.remaining_seconds = static_cast<int>(
+                std::ceil(std::max(0.0, warning->break_starts_at - mono)));
+            presentation.progress = std::clamp(
+                1.0 - (warning->break_starts_at - mono) / work, 0.0, 1.0);
+        } else if (const auto* state = std::get_if<Paused>(&state_)) {
+            presentation.phase = PopoverPhase::paused;
+            presentation.remaining_seconds = static_cast<int>(
+                std::ceil(std::max(0.0, state->until - wall)));
+        } else if (const auto* state = std::get_if<Breaking>(&state_)) {
+            presentation.phase = PopoverPhase::breaking;
+            presentation.remaining_seconds = static_cast<int>(
+                std::ceil(state->session.remaining(mono)));
+            presentation.progress = state->session.progress(mono);
+        } else {
+            presentation.phase = PopoverPhase::suspended;
+        }
+        popover_->update_presentation(presentation);
+    }
+
     if (break_now_) break_now_->setEnabled(!paused && !breaking && !suspended);
     if (resume_) resume_->setEnabled(paused);
-    if (control_break_) control_break_->setEnabled(!paused && !breaking && !suspended);
-    if (control_resume_) control_resume_->setEnabled(paused);
-    if (work_group_) for (auto* action : work_group_->actions()) {
+
+    if (work_group_) for (auto* action : work_group_->actions())
         action->setChecked(action->data().toInt() * 60 == schedule_.work_interval);
-    }
-    if (break_group_) for (auto* action : break_group_->actions()) {
+    if (break_group_) for (auto* action : break_group_->actions())
         action->setChecked(action->data().toInt() == schedule_.break_duration);
+
+    if (work_buttons_) {
+        if (auto* checked = work_buttons_->button(static_cast<int>(schedule_.work_interval / 60)))
+            checked->setChecked(true);
     }
-    if (control_work_) {
-        QSignalBlocker block(control_work_);
-        control_work_->setCurrentIndex(control_work_->findData(static_cast<int>(schedule_.work_interval / 60)));
-    }
-    if (control_duration_) {
-        QSignalBlocker block(control_duration_);
-        control_duration_->setCurrentIndex(control_duration_->findData(static_cast<int>(schedule_.break_duration)));
+    if (duration_buttons_) {
+        if (auto* checked = duration_buttons_->button(static_cast<int>(schedule_.break_duration)))
+            checked->setChecked(true);
     }
     const bool autostart = settings_.autostart_enabled();
     if (autostart_) {

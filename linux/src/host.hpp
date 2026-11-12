@@ -1,23 +1,23 @@
 #pragma once
 #include "overlay.hpp"
 #include "settings.hpp"
+#include "tray_popover.hpp"
 
 #include <blinkrest/core.hpp>
 
 #include <QMenu>
 #include <QObject>
-#include <QPointer>
 #include <QSystemTrayIcon>
+#include <memory>
 #include <QTimer>
 
 class QAction;
 class QActionGroup;
 class QCheckBox;
-class QComboBox;
 class QLabel;
 class QPushButton;
+class QButtonGroup;
 class QWidget;
-class QEvent;
 
 namespace blinkrest::linux_ui {
 
@@ -33,9 +33,6 @@ public:
     const SessionState& state() const { return state_; }
     int overlay_count() const { return overlays_.count(); }
 
-protected:
-    bool eventFilter(QObject* watched, QEvent* event) override;
-
 public slots:
     void on_prepare_for_sleep(bool sleeping);
     void on_screen_saver_active(bool active);
@@ -46,6 +43,7 @@ private:
     void initialize_ui();
     void initialize_lifecycle();
     void initialize_menu();
+    void show_settings();
     void initialize_control_window();
     void update_ui();
     void check_tray_availability();
@@ -66,6 +64,7 @@ private:
     QTimer tray_check_timer_;
     QMenu menu_;
     QSystemTrayIcon tray_;
+    std::unique_ptr<TrayPopover> popover_;
 
     QAction* break_now_ = nullptr;
     QAction* resume_ = nullptr;
@@ -75,10 +74,8 @@ private:
     QActionGroup* break_group_ = nullptr;
     QWidget* control_window_ = nullptr;
     QLabel* status_label_ = nullptr;
-    QPushButton* control_break_ = nullptr;
-    QPushButton* control_resume_ = nullptr;
-    QComboBox* control_work_ = nullptr;
-    QComboBox* control_duration_ = nullptr;
+    QButtonGroup* work_buttons_ = nullptr;
+    QButtonGroup* duration_buttons_ = nullptr;
     QCheckBox* control_autostart_ = nullptr;
     bool shown_as_fallback_ = false;
 };
