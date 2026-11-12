@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.22)
 project(BlinkRestLinux VERSION 0.1.0 LANGUAGES CXX)
 
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
@@ -15,7 +15,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 6.4 REQUIRED COMPONENTS Core Widgets Gui DBus)
+find_package(Qt6 6.2 REQUIRED COMPONENTS Core Widgets Gui DBus)
 
 add_library(blinkrest_core STATIC ../windows/src/core.cpp)
 target_include_directories(blinkrest_core PUBLIC ../windows/include)
@@ -65,6 +65,8 @@ set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Periodic eye-break reminder for Linux des
 set(CPACK_PACKAGE_VERSION "${BLINKREST_VERSION}")
 set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+# Qt platform plugins are dlopen-ed, so dpkg-shlibdeps cannot discover them.
+set(CPACK_DEBIAN_PACKAGE_DEPENDS "qt6-qpa-plugins")
 set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
 set(CPACK_GENERATOR "DEB")
 include(CPack)

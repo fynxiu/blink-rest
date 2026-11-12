@@ -6,7 +6,9 @@ It does not depend on Windows APIs or a macOS runtime.
 
 ## Supported environments
 
-- Ubuntu 24.04 / Debian-family graphical desktops with Qt 6.4+ available.
+- Ubuntu 22.04 and 24.04 graphical desktops, plus Debian-family distributions
+  with Qt 6.2+ and a sufficiently recent glibc. Linux packages are built on
+  Ubuntu 22.04 for compatibility with the Qt 6 naming transition.
 - X11 for the most reliable always-on-top multi-monitor break windows.
   For native Wayland, install the optional qt6-wayland platform plugin.
 - Wayland as a **best-effort** desktop: compositor policies may restrict window
@@ -23,7 +25,8 @@ Download the appropriate Debian package from a GitHub release, then:
 
     sudo apt install ./BlinkRest-vX.Y.Z-linux-amd64.deb
 
-Use linux-arm64.deb on an ARM64 system. The package installs a desktop launcher
+Use linux-arm64.deb on an ARM64 system. The package installs Qt platform plugins through normal apt dependencies,
+a desktop launcher
 and the Blink Rest icon. Open **Blink Rest** from the desktop menu or run
 **blinkrest** from a terminal.
 
@@ -61,9 +64,9 @@ directory (normally **~/.config/BlinkRest/BlinkRest.conf**).
 
 ## Build and test from source
 
-Install dependencies on Ubuntu 24.04:
+Install build dependencies on Ubuntu 22.04 or 24.04:
 
-    sudo apt install build-essential cmake ninja-build qt6-base-dev
+    sudo apt install build-essential cmake ninja-build qt6-base-dev libgl1-mesa-dev
 
 Then run from the repository root:
 
@@ -97,3 +100,21 @@ ordinary logind and desktop screen-saver D-Bus signals where available.
 The Linux GUI is currently English-only. X11/Wayland compositor behavior,
 fractional DPI, screen hot-plugging and sleep/wake should be verified on real
 hardware for each supported desktop environment.
+
+### If dpkg reports missing libqt6*t64 dependencies
+
+The original v1.2.3 Linux Debian packages were built on Ubuntu 24.04
+and required Qt6 library package names that do not exist on Ubuntu 22.04.
+Use a newer, Ubuntu-22.04-built release. A Debian package installed using
+dpkg -i does not resolve dependencies automatically. Instead use:
+
+    sudo apt install ./BlinkRest-vX.Y.Z-linux-amd64.deb
+
+Replace amd64 with arm64 when appropriate. On Ubuntu 24.04, apt can resolve
+legacy Qt6 package names through the t64 packages' Provides declarations.
+To repair an incomplete installation first, use:
+
+    sudo apt --fix-broken install
+
+Check the proposed changes before accepting them; on an unsupported distro,
+apt may propose removing Blink Rest instead.
