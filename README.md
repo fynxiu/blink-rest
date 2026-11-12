@@ -105,8 +105,9 @@ the compatibility contract used by update discovery.
 
 ## Usage
 
-The following describes **macOS**. Linux offers equivalent controls in the
-system tray or a fallback status window; see the Linux guide.
+The following describes **macOS**. Linux now uses the same
+countdown-ring popover, primary action, upper-right hold-to-skip overlay
+controls, and grouped settings layout; see the Linux guide.
 
 - Select the eye icon in the menu bar to see the next break.
 - Choose **Take a break now** to start immediately.

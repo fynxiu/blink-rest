@@ -27,10 +27,13 @@ add_executable(blinkrest
     src/host.hpp
     src/overlay.cpp
     src/overlay.hpp
+    src/tray_popover.cpp
+    src/tray_popover.hpp
     src/settings.cpp
     src/settings.hpp
 )
 target_link_libraries(blinkrest PRIVATE blinkrest_core Qt6::Widgets Qt6::DBus)
+target_compile_definitions(blinkrest PRIVATE BLINKREST_VERSION_STRING="${BLINKREST_VERSION}")
 target_compile_options(blinkrest PRIVATE -Wall -Wextra -Wpedantic -Werror)
 
 enable_testing()
@@ -47,6 +50,18 @@ add_executable(blinkrest_linux_settings_tests
 target_link_libraries(blinkrest_linux_settings_tests PRIVATE blinkrest_core Qt6::Core)
 target_compile_options(blinkrest_linux_settings_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
 add_test(NAME linux_settings COMMAND blinkrest_linux_settings_tests)
+
+add_executable(blinkrest_linux_ui_tests
+    tests/ui_tests.cpp
+    src/tray_popover.cpp
+    src/tray_popover.hpp
+    src/overlay.cpp
+    src/overlay.hpp
+)
+target_link_libraries(blinkrest_linux_ui_tests PRIVATE blinkrest_core Qt6::Widgets)
+target_compile_options(blinkrest_linux_ui_tests PRIVATE -Wall -Wextra -Wpedantic -Werror)
+add_test(NAME linux_ui_contract COMMAND blinkrest_linux_ui_tests)
+set_tests_properties(linux_ui_contract PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 20)
 
 add_test(NAME linux_gui_smoke COMMAND blinkrest --smoke)
 set_tests_properties(linux_gui_smoke PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen" TIMEOUT 20)

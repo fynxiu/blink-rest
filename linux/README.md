@@ -37,7 +37,10 @@ directory. For most users, the Debian package is preferable.
 
 ## Using the application
 
-Open the eye icon in the system tray. The menu provides:
+Click the eye icon in the system tray to open a **circular countdown
+popover**, following the same 304 px visual layout as Blink Rest for macOS and
+Windows. Right-click the tray icon for native quick settings. The controls
+provide:
 
 - **Take a break now**, pause for 30 or 60 minutes, or resume.
 - Work intervals of **20/25/30/40 minutes**.
@@ -46,10 +49,13 @@ Open the eye icon in the system tray. The menu provides:
 
 If your desktop does not support a system tray (for example some unmodified
 GNOME Shell installations), Blink Rest shows an ordinary status/settings
-window instead, including a Quit button.
+countdown window instead, including the same controls and a Quit button.
+Settings open in a separate grouped window with segmented interval controls.
 
 Each break covers the Qt-recognized screens, progressing through **Look far**,
-**Blink gently** and **Close your eyes**. Hold Escape or the visible skip button
+**Blink gently** and **Close your eyes** with the same central progress ring,
+eye-stage glyphs, and subdued breathing halo as macOS and Windows. The
+1.5-second hold-to-skip control is in the upper-right corner. Hold Escape or the visible skip button
 for **1.5 seconds** to end a break deliberately. Accessibility users can
 press **Ctrl+Shift+S** while the overlay is focused to skip immediately. Breaks finish automatically.
 
@@ -97,7 +103,9 @@ does not inspect foreground windows, monitor global input or demand
 Accessibility-like permissions. Sleep/wake and lock/unlock handling uses
 ordinary logind and desktop screen-saver D-Bus signals where available.
 
-The Linux GUI is currently English-only. X11/Wayland compositor behavior,
+Set BLINKREST_REDUCE_MOTION=1 in the launch environment to disable the
+decorative blinking halo animation; the progress ring and timing continue to
+work. The Linux GUI is currently English-only. X11/Wayland compositor behavior,
 fractional DPI, screen hot-plugging and sleep/wake should be verified on real
 hardware for each supported desktop environment.
 
