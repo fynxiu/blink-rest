@@ -5,6 +5,37 @@ import XCTest
 
 @MainActor
 final class OverlayWindowCoordinatorTests: XCTestCase {
+    func testSkipCornerPolicyCoversFourCornersAndNeverRepeats() {
+        for previous in [nil] + SkipCorner.allCases.map(Optional.some) {
+            let options = SkipCorner.allCases.filter { $0 != previous }
+            var chosen: Set<SkipCorner> = []
+            for sample in 0..<options.count {
+                let corner = SkipCorner.next(after: previous, sample: sample)
+                XCTAssertNotEqual(corner, previous)
+                chosen.insert(corner)
+            }
+            XCTAssertEqual(chosen.count, options.count)
+        }
+    }
+
+    func testSkipCornerChangesOnlyBetweenBreaksNotDuringPresentationRecovery() {
+        let harness = makeHarness(displays: [
+            OverlayDisplay(id: 1, frame: NSRect(x: 0, y: 0, width: 1280, height: 800)),
+            OverlayDisplay(id: 2, frame: NSRect(x: 1280, y: 0, width: 1280, height: 800)),
+        ])
+
+        harness.coordinator.present(session: breakSession)
+        let first = harness.coordinator.currentSkipCorner
+        harness.coordinator.present(session: breakSession)
+        harness.coordinator.reconcileScreens()
+        harness.coordinator.applicationDidBecomeActive()
+        XCTAssertEqual(harness.coordinator.currentSkipCorner, first)
+
+        harness.coordinator.dismiss()
+        harness.coordinator.present(session: breakSession)
+        XCTAssertNotEqual(harness.coordinator.currentSkipCorner, first)
+    }
+
     func testBreakWindowPolicyCoversSpacesFullScreenAndStageManager() {
         let behavior = BreakWindow.requiredCollectionBehavior
 

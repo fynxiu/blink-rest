@@ -65,3 +65,22 @@ Blink Rest is a behavioral interruption, not a kiosk or security boundary.
 Neither implementation should install broad input interception merely to defeat
 normal operating-system navigation. Lock screens, secure desktops, force-quit
 paths, accessibility features, and system-owned shortcuts remain available.
+
+## Skip-control placement
+
+At the **start of each new break**, choose one of four predefined corner
+positions (top-left, top-right, bottom-left, bottom-right). Exclude the corner
+used in the previous break. The same choice applies on all connected displays
+and **remains fixed** throughout the break, including stage transitions,
+monitor changes, virtual-desktop changes and presentation recovery.
+
+Keep the skip button and its keyboard hint together, inside the screen's safe
+margin (normally 30 px / pt). Do not place either control over the central
+progress ring or stage text. Holding the button for 1.5 seconds remains the
+same. Fixed keyboard and accessibility skip options remain available; the
+position change must not hide, disable or delay these exits.
+
+This is a low-friction way to discourage automatic mouse-movement habits,
+not a security mechanism or a treatment claim. The position is never changed
+mid-break, never flashes or chases a pointer, and is not user-specific
+tracking or analytics.

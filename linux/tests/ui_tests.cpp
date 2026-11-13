@@ -107,5 +107,42 @@ int main(int argc, char* argv[]) {
           == "Close your eyes");
     check(skipped == 0);
     overlay.hide();
+
+    // Every corner remains within the screen margin and is stable during an
+    // active break, including an overlay reordering.
+    for (SkipCorner corner : {SkipCorner::top_left, SkipCorner::top_right,
+                              SkipCorner::bottom_left, SkipCorner::bottom_right}) {
+        BreakOverlay placed(screen, [&] { ++skipped; }, corner);
+        placed.display(session, 100);
+        app.processEvents();
+        auto* panel = placed.findChild<QWidget*>("skipPanel");
+        check(panel != nullptr);
+        const QRect location = panel->geometry();
+        constexpr int margin = 30;
+        check(is_left(corner)
+            ? location.left() == margin
+            : location.right() == placed.width() - margin - 1);
+        check(is_top(corner)
+            ? location.top() == margin
+            : location.bottom() == placed.height() - margin - 1);
+        placed.refresh(105);
+        placed.position_on_screen();
+        check(placed.skip_corner() == corner);
+        check(panel->geometry() == location);
+        placed.hide();
+    }
+
+    OverlayManager manager([&] { ++skipped; });
+    manager.present(session, 100);
+    const auto first = manager.current_corner();
+    manager.reconcile(105);
+    manager.present(session, 110);
+    check(manager.current_corner() == first);
+    manager.dismiss();
+
+    const BreakSession next_session{140, 170, 30};
+    manager.present(next_session, 140);
+    check(manager.current_corner() != first);
+    manager.dismiss();
     return 0;
 }

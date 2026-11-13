@@ -1,4 +1,5 @@
 #include "overlay.hpp"
+#include <blinkrest/skip_placement.hpp>
 
 #include <d2d1.h>
 #include <dwrite.h>
@@ -9,6 +10,8 @@
 #include <cmath>
 #include <cwchar>
 #include <memory>
+#include <optional>
+#include <random>
 #include <utility>
 #include <vector>
 
@@ -93,6 +96,8 @@ struct OverlayManager::Impl {
     std::vector<std::unique_ptr<WindowRecord>> windows;
     BreakSession session{};
     MonotonicInstant at = 0;
+    SkipCorner skip_corner = SkipCorner::top_right;
+    std::optional<SkipCorner> last_skip_corner;
     HoldKind hold_kind = HoldKind::none;
     double hold_started_at = 0;
     HWND hold_window = nullptr;
@@ -316,6 +321,10 @@ struct OverlayManager::Impl {
     }
 
     void present(const BreakSession& value, MonotonicInstant instant) {
+        if (!active || session != value) {
+            skip_corner = next_skip_corner(last_skip_corner, std::random_device{}());
+            last_skip_corner = skip_corner;
+        }
         session = value;
         at = instant;
         active = true;
@@ -487,15 +496,50 @@ struct OverlayManager::Impl {
         }
     }
 
+    struct SkipControlLayout {
+        D2D1_RECT_F button;
+        D2D1_POINT_2F keyboard_center;
+        D2D1_RECT_F hint;
+    };
+
+    SkipControlLayout skip_layout_dip(D2D1_SIZE_F size) const {
+        constexpr float margin = 30.0f;
+        constexpr float button_width = 156.0f;
+        constexpr float button_height = 36.0f;
+        const float left = is_left(skip_corner)
+            ? margin : std::max(margin, size.width - margin - button_width);
+        const float top = is_top(skip_corner)
+            ? 62.0f : std::max(62.0f, size.height - margin - button_height);
+        const auto button = D2D1::RectF(
+            left, top, left + button_width, top + button_height
+        );
+
+        const auto keyboard_center = D2D1::Point2F(
+            is_left(skip_corner) ? margin + 14.0f : size.width - margin - 14.0f,
+            top - 18.0f
+        );
+        const auto hint = is_left(skip_corner)
+            ? D2D1::RectF(margin + 36.0f, top - 32.0f, margin + 285.0f, top - 4.0f)
+            : D2D1::RectF(std::max(20.0f, size.width - 300.0f), top - 32.0f,
+                          keyboard_center.x - 23.0f, top - 4.0f);
+        return {button, keyboard_center, hint};
+    }
+
     RECT skip_button_rect_px(const WindowRecord& record) const {
         RECT client{};
         GetClientRect(record.window, &client);
         const float scale = static_cast<float>(GetDpiForWindow(record.window)) / 96.0f;
-        const int margin = static_cast<int>(std::lround(30.0f * scale));
-        const int width = static_cast<int>(std::lround(156.0f * scale));
-        const int height = static_cast<int>(std::lround(36.0f * scale));
-        const int top = static_cast<int>(std::lround(62.0f * scale));
-        return RECT{client.right - margin - width, top, client.right - margin, top + height};
+        const auto size = D2D1::SizeF(
+            static_cast<float>(client.right - client.left) / scale,
+            static_cast<float>(client.bottom - client.top) / scale
+        );
+        const auto button = skip_layout_dip(size).button;
+        return RECT{
+            static_cast<LONG>(std::lround(button.left * scale)),
+            static_cast<LONG>(std::lround(button.top * scale)),
+            static_cast<LONG>(std::lround(button.right * scale)),
+            static_cast<LONG>(std::lround(button.bottom * scale)),
+        };
     }
 
     bool ensure_target(WindowRecord& record) {
@@ -617,13 +661,8 @@ struct OverlayManager::Impl {
         ID2D1Brush* primary, ID2D1Brush* secondary, ID2D1Brush* accent,
         ID2D1Brush* track, ID2D1Brush* surface, ID2D1Brush* border
     ) {
-        constexpr float margin = 30.0f;
-        constexpr float button_width = 156.0f;
-        constexpr float button_height = 36.0f;
-        const auto button = D2D1::RectF(
-            size.width - margin - button_width, 62.0f,
-            size.width - margin, 62.0f + button_height
-        );
+        const auto layout = skip_layout_dip(size);
+        const auto button = layout.button;
         const D2D1_ROUNDED_RECT rounded{button, 10.0f, 10.0f};
         record.target->FillRoundedRectangle(rounded, surface);
         record.target->DrawRoundedRectangle(rounded, border, 1.0f);
@@ -642,15 +681,14 @@ struct OverlayManager::Impl {
             button_text, primary, D2D1_DRAW_TEXT_OPTIONS_CLIP
         );
 
-        const auto keyboard_center = D2D1::Point2F(size.width - margin - 14.0f, 44.0f);
+        const auto keyboard_center = layout.keyboard_center;
         record.target->DrawEllipse(D2D1::Ellipse(keyboard_center, 13.0f, 13.0f), track, 2.0f);
         draw_progress_arc(record.target, keyboard_center, 13.0f, hold_progress(HoldKind::keyboard), accent, 2.0f);
 
-        hint_format->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_TRAILING);
-        const auto hint_rect = D2D1::RectF(
-            std::max(20.0f, size.width - 300.0f), 30.0f,
-            keyboard_center.x - 23.0f, 58.0f
+        hint_format->SetTextAlignment(
+            is_left(skip_corner) ? DWRITE_TEXT_ALIGNMENT_LEADING : DWRITE_TEXT_ALIGNMENT_TRAILING
         );
+        const auto hint_rect = layout.hint;
         record.target->DrawTextW(
             kSkipHint, static_cast<UINT32>(wcslen(kSkipHint)), hint_format,
             hint_rect, secondary, D2D1_DRAW_TEXT_OPTIONS_CLIP

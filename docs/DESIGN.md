@@ -68,3 +68,17 @@ a small standalone window rather than exposing a bare settings form.
 Wayland stacking and cross-app global Escape interception cannot be made
 identical to the macOS and Windows implementations without compositor-specific
 privileges; do not claim otherwise.
+
+## Rotating skip-control position
+
+To discourage reflexive mouse skipping, choose a safe corner (top-left,
+top-right, bottom-left, bottom-right) at the start of each break, excluding
+the last break's corner. Keep the **entire** skip affordance—button,
+hold-progress indicator, and Escape hint—at that corner for the whole
+break. Multi-display overlays use the same corner so users don't need to
+search separate monitors. Do not choose arbitrary screen coordinates,
+change location on mouse movement, or move after a break stage transition.
+
+All four corners have a consistent inset. On left corners the button/hint
+layout mirrors horizontally to remain discoverable. Keyboard and accessibility
+exits are stable, and the 1.5-second pointer hold duration does not change.

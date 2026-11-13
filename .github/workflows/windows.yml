@@ -1,0 +1,31 @@
+name: Windows CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'windows/**'
+      - '.github/workflows/windows.yml'
+  pull_request:
+    paths:
+      - 'windows/**'
+      - '.github/workflows/windows.yml'
+  workflow_dispatch:
+
+jobs:
+  native:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure MSVC x64
+        shell: cmd
+        run: cmake -S windows -B build/windows -G "Visual Studio 17 2022" -A x64 -DBLINKREST_VERSION=1.2.6
+      - name: Build native Windows app and regression tests
+        run: cmake --build build/windows --config Release --parallel 2
+      - name: Run core and update-discovery tests
+        run: ctest --test-dir build/windows -C Release --output-on-failure
+      - name: Run Win32 headless initialization smoke
+        shell: pwsh
+        run: |
+          & ".\build\windows\Release\blinkrest_win32.exe" --headless-smoke
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

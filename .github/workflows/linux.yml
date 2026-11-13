@@ -6,6 +6,7 @@ on:
     paths:
       - 'linux/**'
       - 'windows/include/blinkrest/core.hpp'
+      - 'windows/include/blinkrest/skip_placement.hpp'
       - 'windows/src/core.cpp'
       - 'windows/tests/core_tests.cpp'
       - '.github/workflows/linux.yml'
@@ -13,6 +14,7 @@ on:
     paths:
       - 'linux/**'
       - 'windows/include/blinkrest/core.hpp'
+      - 'windows/include/blinkrest/skip_placement.hpp'
       - 'windows/src/core.cpp'
       - 'windows/tests/core_tests.cpp'
       - '.github/workflows/linux.yml'
