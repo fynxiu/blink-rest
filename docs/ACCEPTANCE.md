@@ -79,3 +79,15 @@ version, display count, and scale. After a 30-second warm-up, sample process CPU
 and resident memory once per second for 60 seconds. Report average CPU, peak CPU,
 and peak resident memory; investigate sustained CPU above 1% or memory above
 80 MB rather than treating hardware-sensitive figures as universal guarantees.
+
+## Rotating skip-control acceptance
+
+- Starting a fresh break selects one of four safe screen corners; the next
+  break does not reuse the previous corner in the same app session.
+- Every connected display shows its skip controls at that same corner.
+- Elapsed time updates, stage transitions, display hot-plugging, Space /
+  virtual-desktop changes and overlay reconstruction leave the corner fixed.
+- The button and Escape hint remain visible, without covering the central
+  progress ring or stage text. Controls mirror to align with left corners.
+- Pointer hold still requires 1.5 seconds. Escape and accessibility skip
+  controls remain available; random placement never blocks emergency exit.

@@ -19,6 +19,7 @@
 #include <QWindow>
 
 #include <algorithm>
+#include <random>
 #include <cmath>
 #include <utility>
 
@@ -148,10 +149,12 @@ private:
     double progress_ = 0;
 };
 
-BreakOverlay::BreakOverlay(QScreen* screen, std::function<void()> skip_callback)
+BreakOverlay::BreakOverlay(QScreen* screen, std::function<void()> skip_callback,
+                           SkipCorner corner)
     : QWidget(nullptr, Qt::Window | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint),
       screen_(screen),
-      skip_callback_(std::move(skip_callback)) {
+      skip_callback_(std::move(skip_callback)),
+      skip_corner_(corner) {
     setObjectName("breakOverlay");
     setWindowTitle("Blink Rest — Eye break");
     setStyleSheet(QString(
@@ -198,16 +201,15 @@ BreakOverlay::BreakOverlay(QScreen* screen, std::function<void()> skip_callback)
     skip_layout->setContentsMargins(0, 0, 0, 0);
     skip_layout->setSpacing(7);
 
-    auto* hint_row = new QHBoxLayout;
-    hint_row->setSpacing(8);
-    auto* hint = new QLabel("Hold Esc or hold the button to skip", skip_panel_);
-    hint->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
-    hint->setWordWrap(true);
-    hint->setStyleSheet(QString("font-size: 12px; color: %1;").arg(secondary));
-    hint_row->addWidget(hint, 1);
+    hint_row_ = new QHBoxLayout;
+    hint_row_->setSpacing(8);
+    hint_ = new QLabel("Hold Esc or hold the button to skip", skip_panel_);
+    hint_->setWordWrap(true);
+    hint_->setStyleSheet(QString("font-size: 12px; color: %1;").arg(secondary));
+    hint_row_->addWidget(hint_, 1);
     keyboard_progress_ = new HoldProgressRing(28, skip_panel_);
-    hint_row->addWidget(keyboard_progress_);
-    skip_layout->addLayout(hint_row);
+    hint_row_->addWidget(keyboard_progress_);
+    skip_layout->addLayout(hint_row_);
 
     skip_ = new QPushButton("Hold to skip", skip_panel_);
     skip_->setObjectName("holdToSkip");
@@ -223,10 +225,10 @@ BreakOverlay::BreakOverlay(QScreen* screen, std::function<void()> skip_callback)
         " background: #171A20; border: 1px solid #3C3F45; border-radius: 10px; }"
         "QPushButton#holdToSkip:hover { border-color: #77A9FF; }"
         "QPushButton#holdToSkip:focus { border: 2px solid #77A9FF; }");
-    auto* skip_row = new QHBoxLayout;
-    skip_row->addStretch(1);
-    skip_row->addWidget(skip_);
-    skip_layout->addLayout(skip_row);
+    skip_row_ = new QHBoxLayout;
+    skip_row_->addStretch(1);
+    skip_row_->addWidget(skip_);
+    skip_layout->addLayout(skip_row_);
     pointer_progress_ = new HoldProgressRing(24, skip_);
     pointer_progress_->move(7, 6);
     pointer_progress_->raise();
@@ -263,6 +265,29 @@ BreakOverlay::BreakOverlay(QScreen* screen, std::function<void()> skip_callback)
         cancel_hold();
         skip_callback_();
     });
+    set_skip_corner(corner);
+}
+
+void BreakOverlay::set_skip_corner(SkipCorner corner) {
+    skip_corner_ = corner;
+    const bool left = is_left(corner);
+    if (skip_row_) skip_row_->setDirection(
+        left ? QBoxLayout::RightToLeft : QBoxLayout::LeftToRight);
+    if (hint_row_) hint_row_->setDirection(
+        left ? QBoxLayout::RightToLeft : QBoxLayout::LeftToRight);
+    if (hint_) hint_->setAlignment(
+        (left ? Qt::AlignLeft : Qt::AlignRight) | Qt::AlignVCenter);
+    position_skip_panel();
+}
+
+void BreakOverlay::position_skip_panel() {
+    if (!skip_panel_) return;
+    constexpr int margin = 30;
+    const int x = is_left(skip_corner_) ? margin :
+        std::max(margin, width() - skip_panel_->width() - margin);
+    const int y = is_top(skip_corner_) ? margin :
+        std::max(margin, height() - skip_panel_->height() - margin);
+    skip_panel_->move(x, y);
 }
 
 void BreakOverlay::resizeEvent(QResizeEvent* event) {
@@ -270,7 +295,7 @@ void BreakOverlay::resizeEvent(QResizeEvent* event) {
     stage_->setFixedWidth(text_width);
     detail_->setFixedWidth(text_width);
     QWidget::resizeEvent(event);
-    skip_panel_->move(std::max(0, width() - skip_panel_->width() - 30), 30);
+    position_skip_panel();
 }
 
 void BreakOverlay::position_on_screen() {
@@ -426,6 +451,10 @@ OverlayManager::OverlayManager(std::function<void()> skip_callback)
 OverlayManager::~OverlayManager() { dismiss(); }
 
 void OverlayManager::present(const BreakSession& session, MonotonicInstant now) {
+    if (!session_ || *session_ != session) {
+        current_corner_ = next_skip_corner(last_corner_, std::random_device{}());
+        last_corner_ = current_corner_;
+    }
     session_ = session;
     reconcile(now);
 }
@@ -442,11 +471,12 @@ void OverlayManager::reconcile(MonotonicInstant now) {
     }
     for (auto* screen : screens) {
         if (!overlays_.contains(screen)) {
-            auto* overlay = new BreakOverlay(screen, skip_callback_);
+            auto* overlay = new BreakOverlay(screen, skip_callback_, current_corner_);
             overlays_.insert(screen, overlay);
             overlay->display(*session_, now);
         } else {
             auto* overlay = overlays_.value(screen);
+            overlay->set_skip_corner(current_corner_);
             overlay->refresh(now);
             overlay->position_on_screen();
         }

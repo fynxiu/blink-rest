@@ -30,6 +30,9 @@ driven from macOS and continuously compiled and smoke-tested on a real Windows
   controls; right-click retains the native quick-settings menu.
 - Direct2D eye-stage geometry aligned with the macOS eye, filled-eye, and
   slashed-eye visual language, including the Blink breathing halo.
+- The hold-to-skip control and keyboard hint rotate among four screen corners
+  at the start of each break, avoiding an immediate repeat. The chosen corner
+  remains stable through display and virtual-desktop reconciliation.
 
 The portable core remains independent of AppKit, Swift, Win32, Direct2D,
 registry, tray, and packaging code; those boundaries live in src/win32.

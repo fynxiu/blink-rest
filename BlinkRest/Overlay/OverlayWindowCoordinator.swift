@@ -88,6 +88,7 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
 
     private(set) var isPresented = false
     private(set) var managedDisplayIDs: Set<UInt32> = []
+    var currentSkipCorner: SkipCorner { presentationModel.skipCorner }
 
     private let displayProvider: any OverlayDisplayProviding
     private let windowFactory: any BreakWindowMaking
@@ -148,6 +149,7 @@ final class OverlayWindowCoordinator: OverlayPresenting, FrontmostApplicationMan
         }
 
         presentationModel.reset()
+        presentationModel.chooseSkipCorner()
         activeSession = session
         presentationModel.update(session: session, at: session.startedAt)
         isPresented = true

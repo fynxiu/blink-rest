@@ -1,4 +1,5 @@
 #include <blinkrest/core.hpp>
+#include <blinkrest/skip_placement.hpp>
 
 #include <cmath>
 #include <cstdlib>
@@ -32,6 +33,24 @@ SessionContext context(
 
 SessionEvent event(EventKind kind) {
     return {kind, std::nullopt};
+}
+
+void test_skip_placement_policy() {
+    for (unsigned index = 0; index < 4; ++index) {
+        check(next_skip_corner(std::nullopt, index) == static_cast<SkipCorner>(index));
+        for (unsigned sample = 0; sample < 100; ++sample) {
+            const auto previous = static_cast<SkipCorner>(index);
+            const auto next = next_skip_corner(previous, sample);
+            check(next != previous);
+            check(static_cast<unsigned>(next) <= 3);
+        }
+    }
+    check(is_left(SkipCorner::top_left));
+    check(is_left(SkipCorner::bottom_left));
+    check(!is_left(SkipCorner::top_right));
+    check(is_top(SkipCorner::top_left));
+    check(is_top(SkipCorner::top_right));
+    check(!is_top(SkipCorner::bottom_left));
 }
 
 void test_break_protocol() {
@@ -400,6 +419,7 @@ void test_wall_clock_does_not_move_monotonic_deadlines() {
 }  // namespace
 
 int main() {
+    test_skip_placement_policy();
     test_break_protocol();
     test_break_session();
     test_launch_and_warning();

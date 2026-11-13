@@ -63,12 +63,50 @@ enum BreakOverlayStage: Equatable, Sendable {
     }
 }
 
+// One safe corner for a complete break, shared by every connected display.
+// The previous corner is excluded so users cannot blindly hit the same spot.
+enum SkipCorner: CaseIterable, Equatable, Sendable {
+    case topLeading
+    case topTrailing
+    case bottomLeading
+    case bottomTrailing
+
+    var alignment: Alignment {
+        switch self {
+        case .topLeading: .topLeading
+        case .topTrailing: .topTrailing
+        case .bottomLeading: .bottomLeading
+        case .bottomTrailing: .bottomTrailing
+        }
+    }
+
+    var isLeading: Bool {
+        self == .topLeading || self == .bottomLeading
+    }
+
+    static func next(after previous: SkipCorner?, sample: Int) -> SkipCorner {
+        let choices = allCases.filter { $0 != previous }
+        return choices[sample % choices.count]
+    }
+}
+
 @MainActor
 final class BreakOverlayPresentationModel: ObservableObject {
     @Published private(set) var stage: BreakOverlayStage = .lookFar
     @Published private(set) var totalProgress: Double = 0
     @Published private(set) var stageProgress: Double = 0
     @Published private(set) var remainingSeconds: Int = 0
+    @Published private(set) var skipCorner: SkipCorner = .topTrailing
+    private var lastSkipCorner: SkipCorner?
+
+    func chooseSkipCorner(sample: Int? = nil) {
+        let optionCount = lastSkipCorner == nil ? 4 : 3
+        let draw = sample ?? Int.random(in: 0..<optionCount)
+        let selected = SkipCorner.next(after: lastSkipCorner, sample: draw)
+        skipCorner = selected
+        lastSkipCorner = selected
+    }
+
 
     private var hasPresentedSession = false
 
@@ -139,7 +177,7 @@ struct BreakOverlayView: View {
     @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
+        ZStack(alignment: presentation.skipCorner.alignment) {
             DesignTokens.overlayBackground
                 .ignoresSafeArea()
 
@@ -150,6 +188,7 @@ struct BreakOverlayView: View {
 
             SkipControls(
                 escapeHoldController: escapeHoldController,
+                corner: presentation.skipCorner,
                 onPointerSkip: onPointerSkip
             )
             .padding(30)
@@ -262,18 +301,25 @@ private struct BreathingHalo: View {
 
 private struct SkipControls: View {
     @ObservedObject var escapeHoldController: EscapeHoldController
+    let corner: SkipCorner
     let onPointerSkip: () -> Void
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: DesignTokens.grid) {
+        VStack(alignment: corner.isLeading ? .leading : .trailing, spacing: DesignTokens.grid) {
             HStack(spacing: DesignTokens.grid) {
+                if corner.isLeading {
+                    KeyboardHoldProgress(controller: escapeHoldController)
+                }
+
                 Text("break.skip.hint")
                     .font(.caption)
                     .foregroundStyle(DesignTokens.overlaySecondaryText)
                     .lineLimit(2)
-                    .multilineTextAlignment(.trailing)
+                    .multilineTextAlignment(corner.isLeading ? .leading : .trailing)
 
-                KeyboardHoldProgress(controller: escapeHoldController)
+                if !corner.isLeading {
+                    KeyboardHoldProgress(controller: escapeHoldController)
+                }
             }
 
             PointerHoldToSkipButton(
@@ -281,7 +327,7 @@ private struct SkipControls: View {
                 action: onPointerSkip
             )
         }
-        .frame(maxWidth: 270, alignment: .trailing)
+        .frame(maxWidth: 270, alignment: corner.isLeading ? .leading : .trailing)
     }
 }
 
